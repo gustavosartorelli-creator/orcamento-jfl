@@ -14,7 +14,12 @@ Perfis por PIN de 4 dígitos (`orc_usuarios`, independente do app de governança
 - **Banco:** o mesmo Supabase do app de governança (`zzppioqshjiltllfpttg`), tabelas com prefixo `orc_`. Os prédios vêm de `gov_predios`.
 - **Mudanças de banco:** `sql/` (uma por data).
 - **Testar localmente:** `powershell -File .claude/serve.ps1` e abrir http://localhost:8787.
-- **Publicação:** ainda não publicado. Ideia: repositório próprio no GitHub + projeto Netlify `orcamento-jfl`, como o de governança.
+- **Site:** https://orcamento-jfl.netlify.app (Netlify, projeto `orcamento-jfl`, publica a branch `main`)
+- **Repositório:** https://github.com/gustavosartorelli-creator/orcamento-jfl (privado, branch `main`)
+- **Como publicar:** igual ao app de governança. Envie os arquivos alterados para a `main` (sem Git, pelo GitHub no Chrome:
+  *Add file → Upload files → Commit directly to main*; para a pasta `sql/`, use a URL `.../upload/main/sql`). Não envie a pasta `.claude/`.
+- **Atenção (03/11/2026):** o projeto foi criado com a equipe do Netlify sem créditos ("production deploys are paused"), então a
+  primeira publicação ficou *Skipped*. Quando o ciclo virar, abra o projeto no Netlify → *Deploys* → *Trigger deploy → Deploy project*.
 
 ## Como o realizado é calculado
 Cada linha (`orc_linhas`) tem `fonte`:
