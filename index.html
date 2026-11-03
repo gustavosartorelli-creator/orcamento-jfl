@@ -243,7 +243,7 @@ function fracPeriodo(){
 function valores(l){
   if (!MES) return { o: +l.orcado_ano, r: +l.realizado };
   const k = `${ANO}-${String(MES).padStart(2, '0')}`;
-  return { o: +l.orcado_mes, r: l.fonte === 'pagamentos' ? +((l.meses || {})[k] || 0) : null };
+  return { o: +l.orcado_mes, r: l.fonte !== 'manual' ? +((l.meses || {})[k] || 0) : null };
 }
 const nomePeriodo = () => MES ? `${MESES[MES - 1]}/${String(ANO).slice(2)}` : String(ANO);
 
@@ -340,10 +340,12 @@ function render(){
   $('#tabs').classList.toggle('hidden', deps.length < 2);
   $('#tabs').onclick = e => { const d = e.target.dataset.d; if (!d) return; DEP = d; store.set('dep', d); render(); };
 
-  const imp = D.importacao;
-  $('#adminBar').innerHTML = `<span class="hint grow">${imp ? `Pagamentos SPE atualizados em ${quando(imp.em)} (${imp.linhas} lançamentos${imp.por ? ', por ' + esc(imp.por) : ''})` : 'Pagamentos SPE ainda não importados'}</span>`
-    + (isAdmin() ? `<button class="btn sec" id="bImport">Importar pagamentos</button><button class="btn sec" id="bNova">Nova linha</button><button class="btn sec" id="bEquipe">Equipe</button>` : '');
-  if (isAdmin()) { $('#bImport').onclick = abrirImportar; $('#bNova').onclick = () => abrirEditor({ departamento: DEP, origem: 'condominio', fonte: 'manual' }); $('#bEquipe').onclick = abrirEquipe; }
+  const imp = D.importacao, cond = D.condominio;
+  const mesesCond = cond && (cond.meses || []).sort((a, b) => a - b);
+  $('#adminBar').innerHTML = `<span class="hint grow">${imp ? `Pagamentos SPE atualizados em ${quando(imp.em)} (${imp.linhas} lançamentos${imp.por ? ', por ' + esc(imp.por) : ''})` : 'Pagamentos SPE ainda não importados'}<br>
+      ${cond ? `Condomínio (Umuarama) até ${MESES[mesesCond[mesesCond.length - 1] - 1]}/${String(ANO).slice(2)}, importado em ${quando(cond.em)}${cond.por ? ' por ' + esc(cond.por) : ''}` : 'Condomínio (Umuarama) ainda não importado'}</span>`
+    + (isAdmin() ? `<button class="btn sec" id="bImport">Importar SPE</button><button class="btn sec" id="bCond">Importar condomínio</button><button class="btn sec" id="bNova">Nova linha</button><button class="btn sec" id="bEquipe">Equipe</button>` : '');
+  if (isAdmin()) { $('#bImport').onclick = abrirImportar; $('#bCond').onclick = abrirImportarCondominio; $('#bNova').onclick = () => abrirEditor({ departamento: DEP, origem: 'condominio', fonte: 'manual' }); $('#bEquipe').onclick = abrirEquipe; }
 
   const ls = D.linhas.filter(l => l.departamento === DEP);
   if (!ls.length) { $('#conteudo').innerHTML = `<div class="empty"><div class="ttl">Sem linhas de orçamento</div>${isAdmin() ? 'Use “Nova linha” para cadastrar.' : 'A administração ainda não cadastrou o orçamento deste departamento.'}</div>`; return; }
@@ -362,7 +364,7 @@ function render(){
     for (const l of s.linhas) html += linhaHTML(l, f);
     html += '</div>';
   }
-  html += `<p class="hint" style="margin-top:18px">A linha preta em cada barra marca quanto ${MES ? 'do mês' : 'do ano'} já passou. Barra amarela: gasto acima do ritmo do calendário. Vermelha: orçamento ${MES ? 'do mês ' : ''}estourado. <span class="tag auto">AUTO</span> = realizado somado dos pagamentos da planilha de controle; as demais são informadas pela administração${MES ? ', só no total do ano, por isso não aparecem no filtro de mês' : ''}.</p>`;
+  html += `<p class="hint" style="margin-top:18px">A linha preta em cada barra marca quanto ${MES ? 'do mês' : 'do ano'} já passou. Barra amarela: gasto acima do ritmo do calendário. Vermelha: orçamento ${MES ? 'do mês ' : ''}estourado. <span class="tag auto">AUTO</span> = realizado somado automaticamente (SPE: planilha de controle de pagamentos; condomínio: relatório Orçado e Gasto da Umuarama); as demais são informadas pela administração${MES ? ', só no total do ano, por isso não aparecem no filtro de mês' : ''}.</p>`;
   $('#conteudo').innerHTML = html;
   $('#conteudo').onclick = e => { const r = e.target.closest('.row[data-id]'); if (r) abrirDetalhe(+r.dataset.id); };
 }
@@ -403,7 +405,7 @@ function linhaHTML(l, f){
     <div class="c-bar"><div class="pct" style="margin-top:0"><span>só total do ano: ${brl0(l.realizado)}</span></div></div>
   </div>`;
   return `<div class="row" data-id="${l.id}">
-    <div class="nmc"><div class="nm">${l.origem === 'spe' ? '<span class="tag spe">SPE</span>' : ''}${l.fonte === 'pagamentos' ? '<span class="tag auto">AUTO</span>' : ''}${esc(l.complemento)}</div>
+    <div class="nmc"><div class="nm">${l.origem === 'spe' ? '<span class="tag spe">SPE</span>' : ''}${l.fonte !== 'manual' ? '<span class="tag auto">AUTO</span>' : ''}${esc(l.complemento)}</div>
       <div class="meta">${l.codigo ? esc(l.codigo) + ' · ' : ''}${esc(l.finalidade || '')}</div></div>
     <div class="r num c-mes" data-l="Orçado mês">${brl0(l.orcado_mes)}</div>
     <div class="r num" data-l="Orçado ano">${brl0(l.orcado_ano)}</div>
@@ -421,11 +423,11 @@ async function abrirDetalhe(id){
     <div class="hint">${esc(DEPTOS[l.departamento] || l.departamento)} · ${esc(l.secao)}${l.codigo ? ' · código ' + esc(l.codigo) : ''}${l.finalidade ? ' · ' + esc(l.finalidade) : ''}</div>
     <div class="kv"><div><span>Orçado mês</span><b class="num">${brl0(l.orcado_mes)}</b></div><div><span>Orçado ano</span><b class="num">${brl0(o)}</b></div>
       <div><span>Realizado</span><b class="num">${brl0(r)}</b></div><div><span>Resta</span><b class="num" style="color:${o - r < 0 ? 'var(--bad)' : 'inherit'}">${brl0(o - r)}</b></div></div>
-    <div id="dtCorpo">${l.fonte === 'pagamentos' ? '<div class="hint">Carregando pagamentos…</div>' : `<p class="hint">Realizado informado pela administração${l.origem === 'condominio' ? ' (despesa de condomínio)' : ''}.</p>`}</div>
+    <div id="dtCorpo">${l.fonte !== 'manual' ? '<div class="hint">Carregando…</div>' : `<p class="hint">Realizado informado pela administração${l.origem === 'condominio' ? ' (despesa de condomínio)' : ''}.</p>`}</div>
     <div class="acts">${isAdmin() ? '<button class="btn sec" id="dtEditar">Editar linha</button>' : ''}<button class="btn" id="dtOk">Fechar</button></div>`);
   ov.querySelector('#dtOk').onclick = () => ov.remove();
   if (isAdmin()) ov.querySelector('#dtEditar').onclick = () => { ov.remove(); abrirEditor(l); };
-  if (l.fonte !== 'pagamentos') return;
+  if (l.fonte === 'manual') return;
   let pgs;
   try { pgs = await rpc('orc_detalhe', { p_pin: S.pin, p_linha: id }); }
   catch (e) { ov.querySelector('#dtCorpo').innerHTML = `<p class="hint">${esc(e.message)}</p>`; return; }
@@ -437,10 +439,13 @@ async function abrirDetalhe(id){
     <div class="sec-t" style="margin-top:6px">Gasto por mês<span class="tot">tracejado = orçado do mês</span></div>
     <div class="meses"><div class="ref" style="bottom:${+l.orcado_mes / max * 100}%"></div>${lista.map(k => { const v = +meses[k] || 0; return `<div class="m" title="${k}: ${brl(v)}"><i class="${v > +l.orcado_mes ? 'over' : ''}" style="height:${v / max * 100}%"></i></div>`; }).join('')}</div>
     <div class="meses-l">${lista.map(k => `<span>${MESES[+k.slice(5) - 1]}${k.slice(0, 4) != ANO ? '/' + k.slice(2, 4) : ''}</span>`).join('')}</div>
+    ${l.fonte === 'umuarama' ? `<div class="sec-t">Umuarama · bloco ${l.regra_bloco} · ${esc((pgs[0] || {}).conta || l.regra_conta)}<span class="tot">orçado x gasto da Umuarama</span></div>
+    ${pgs.length ? pgs.map(p => `<div class="pg"><div class="d">${MESES[p.mes - 1]}/${String(ANO).slice(2)}</div><div class="t">orçado ${brl(p.orcado)}</div><div class="v num" style="color:${+p.gasto > +p.orcado ? 'var(--bad)' : 'inherit'}">${brl(p.gasto)}</div></div>`).join('')
+      : '<p class="hint">Nenhum mês importado com esta conta.</p>'}` : `
     <div class="sec-t">${pgs.length} pagamento${pgs.length === 1 ? '' : 's'}</div>
     ${pgs.length ? pgs.map(p => `<div class="pg"><div class="d">${dataBR(p.data) || (p.mes ? MESES[+p.mes.slice(5, 7) - 1] + '/' + p.mes.slice(2, 4) : '')}</div>
       <div class="t">${esc(p.descricao || p.finalidade)}<small>${esc(p.fornecedor || '')}${p.nf ? ' · NF ' + esc(p.nf) : ''}${p.pagamento ? ' · pago em ' + dataBR(p.pagamento) : ''}</small></div>
-      <div class="v num">${brl(p.valor)}</div></div>`).join('') : '<p class="hint">Nenhum pagamento encontrado com a regra desta linha.</p>'}`;
+      <div class="v num">${brl(p.valor)}</div></div>`).join('') : '<p class="hint">Nenhum pagamento encontrado com a regra desta linha.</p>'}`}`;
 }
 
 /* ================= Editor de linha (admin) ================= */
@@ -466,8 +471,13 @@ async function abrirEditor(l){
       <label class="fld">Ordem<input id="eOrd" inputmode="numeric" value="${l.ordem ?? ''}"></label>
     </div>
     <div class="fld">Origem<div class="seg" id="eOrig"><button data-v="condominio">Condomínio</button><button data-v="spe">SPE</button></div></div>
-    <div class="fld">Realizado<div class="seg" id="eFonte"><button data-v="manual">Digitado</button><button data-v="pagamentos">Somar pagamentos da planilha</button></div></div>
+    <div class="fld">Realizado<div class="seg" id="eFonte"><button data-v="manual">Digitado</button><button data-v="pagamentos">Pagamentos SPE</button><button data-v="umuarama">Conta da Umuarama</button></div></div>
     <div id="eManual"><label class="fld">Realizado (R$)<input id="eReal" inputmode="decimal" value="${l.realizado_manual ?? ''}"></label></div>
+    <div id="eUmu">
+      <label class="fld">Bloco do relatório<select id="eBloco"></select></label>
+      <div class="fld">Conta da Umuarama que entra nesta linha<div class="fins" id="eContas"><label>Carregando…</label></div></div>
+      <div class="hint" style="margin-top:6px">No JML, o relatório Orçado e Gasto vem em 3 blocos: 1 = Geral, 2 = Residencial, 3 = Comercial.</div>
+    </div>
     <div id="eAuto">
       <label class="fld">Vertical<select id="eVert"><option value="">Qualquer</option><option ${l.regra_vertical === 'OPEX' ? 'selected' : ''}>OPEX</option><option ${l.regra_vertical === 'CAPEX' ? 'selected' : ''}>CAPEX</option></select></label>
       <div class="fld">Finalidades da planilha que entram nesta linha<div class="fins" id="eFins"><label>Carregando…</label></div></div>
@@ -475,9 +485,23 @@ async function abrirEditor(l){
     </div>
     <div class="acts">${novo ? '' : '<button class="btn danger" id="eDel">Excluir</button>'}<span class="grow"></span><button class="btn link" id="eCancel">Cancelar</button><button class="btn" id="eSalvar">Salvar</button></div>`);
   const q = s => ov.querySelector(s);
-  const st = { origem: l.origem || 'condominio', fonte: l.fonte || 'manual', fins: new Set(l.regra_finalidades || []) };
+  const st = { origem: l.origem || 'condominio', fonte: l.fonte || 'manual', fins: new Set(l.regra_finalidades || []), bloco: l.regra_bloco || null, conta: l.regra_conta || null };
   const seg = (id, k) => { const el = q(id); const draw = () => [...el.children].forEach(b => b.classList.toggle('on', b.dataset.v === st[k])); el.onclick = e => { if (!e.target.dataset.v) return; st[k] = e.target.dataset.v; draw(); mostrar(); }; draw(); };
-  const mostrar = () => { q('#eManual').classList.toggle('hidden', st.fonte !== 'manual'); q('#eAuto').classList.toggle('hidden', st.fonte !== 'pagamentos'); desenharFins(); };
+  const mostrar = () => { q('#eManual').classList.toggle('hidden', st.fonte !== 'manual'); q('#eAuto').classList.toggle('hidden', st.fonte !== 'pagamentos'); q('#eUmu').classList.toggle('hidden', st.fonte !== 'umuarama'); desenharFins(); desenharContas(); };
+  let contas = null;
+  const desenharContas = () => {
+    if (st.fonte !== 'umuarama') return;
+    if (!contas) { contas = []; rpc('orc_contas', { p_pin: S.pin, p_predio: PREDIO, p_ano: ANO }).then(c => { contas = c; desenharContas(); }).catch(e => q('#eContas').innerHTML = `<label>${esc(e.message)}</label>`); return; }
+    const blocos = [...new Set(contas.map(c => c.bloco))];
+    if (!blocos.length) { q('#eBloco').innerHTML = ''; q('#eContas').innerHTML = '<label>Nenhum relatório da Umuarama importado neste ano. Use “Importar condomínio”.</label>'; return; }
+    if (!blocos.includes(st.bloco)) st.bloco = blocos[0];
+    q('#eBloco').innerHTML = blocos.map(b => `<option value="${b}" ${b === st.bloco ? 'selected' : ''}>Bloco ${b}</option>`).join('');
+    const vis = contas.filter(c => c.bloco === st.bloco);
+    let grupo = null;
+    q('#eContas').innerHTML = vis.map(c => { const g = c.grupo !== grupo ? `<label style="background:#FAF9F7;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;cursor:default">${esc(c.grupo || '')}</label>` : ''; grupo = c.grupo;
+      const outras = (c.linhas || []).filter(id => id !== l.id);
+      return g + `<label><input type="radio" name="eConta" value="${esc(c.chave)}" ${c.chave === st.conta ? 'checked' : ''}> ${esc(c.conta)} ${outras.length ? '<em>já usada em outra linha</em>' : ''}<small class="num">orçado ${brl0(c.orcado_mes)}/mês · gasto ${brl0(c.total)}</small></label>`; }).join('');
+  };
   let fins = [];
   const desenharFins = () => {
     if (st.fonte !== 'pagamentos') return;
@@ -493,6 +517,8 @@ async function abrirEditor(l){
   };
   seg('#eOrig', 'origem'); seg('#eFonte', 'fonte');
   q('#eVert').onchange = desenharFins;
+  q('#eBloco').onchange = () => { st.bloco = +q('#eBloco').value; st.conta = null; desenharContas(); };
+  q('#eContas').onchange = e => { if (e.target.name === 'eConta') st.conta = e.target.value; };
   q('#eFins').onchange = e => { if (e.target.type !== 'checkbox') return; e.target.checked ? st.fins.add(e.target.value) : st.fins.delete(e.target.value); desenharFins(); };
   q('#eCancel').onclick = () => ov.remove();
   mostrar();
@@ -501,10 +527,12 @@ async function abrirEditor(l){
   q('#eSalvar').onclick = async () => {
     const linha = { id: l.id || null, departamento: q('#eDep').value, secao: q('#eSec').value.trim(), complemento: q('#eComp').value.trim(), codigo: q('#eCod').value.trim(),
       finalidade: q('#eFin').value.trim(), orcado_mes: n('#eMes'), orcado_ano: n('#eAno'), ordem: q('#eOrd').value.trim() ? +q('#eOrd').value : null,
-      origem: st.origem, fonte: st.fonte, realizado_manual: n('#eReal'), regra_vertical: q('#eVert').value, regra_finalidades: [...st.fins] };
+      origem: st.origem, fonte: st.fonte, realizado_manual: n('#eReal'), regra_vertical: q('#eVert').value, regra_finalidades: [...st.fins],
+      regra_bloco: st.fonte === 'umuarama' ? st.bloco : null, regra_conta: st.fonte === 'umuarama' ? st.conta : null };
     if (!linha.secao || !linha.complemento) return toast('Preencha seção e item', true);
     if ([linha.orcado_mes, linha.orcado_ano, linha.realizado_manual].some(isNaN)) return toast('Valor inválido', true);
     if (linha.fonte === 'pagamentos' && !linha.regra_finalidades.length) return toast('Escolha ao menos uma finalidade', true);
+    if (linha.fonte === 'umuarama' && !linha.regra_conta) return toast('Escolha a conta da Umuarama', true);
     q('#eSalvar').disabled = true;
     try { await rpc('orc_salvar_linha', { p_pin: S.pin, p_predio: PREDIO, p_ano: ANO, p_linha: linha }); ov.remove(); toast('Linha salva'); FINS = null; DEP = linha.departamento; carregar(); }
     catch (e) { toast(e.message, true); q('#eSalvar').disabled = false; }
@@ -593,6 +621,69 @@ function abrirImportar(){
       for (const l of lotes.filter(l => l.pode)) await rpc('orc_importar', { p_pin: S.pin, p_predio: l.predio, p_ano: ANO, p_arquivo: nomeArq, p_linhas: l.linhas });
       ov.remove(); toast('Pagamentos importados'); FINS = null; carregar();
     } catch (e) { toast(e.message, true); q('#iOk').disabled = false; }
+  };
+}
+
+/* ================= Importação do relatório da Umuarama (admin) ================= */
+// Relatório "Orçado e Gasto" do portal da Umuarama (Finanças → Prestação de Contas Desm. Online → Exportar Excel).
+// Os blocos (no JML: Geral, Residencial, Comercial) não têm título: um bloco novo começa quando um grupo se repete.
+function lerOrcadoGasto(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+  const topo = rows.slice(0, 4).map(r => (r || []).filter(c => c != null).join(' ')).join(' ');
+  const p = topo.match(/Per[ií]odo:?\s*\d{1,2}\/(\d{1,2})\/(\d{4})/i);
+  const hi = rows.findIndex(r => r && chave(r[0]) === 'DESCRICAO');
+  if (!p || hi < 0) return null;
+  const col = {}; rows[hi].forEach((c, i) => { const k = chave(c); if (k && !(k in col)) col[k] = i; });
+  if (col.ORCADO == null || col.GASTO == null) return null;
+  const out = []; let bloco = 1, vistos = new Set(), grupo = null;
+  for (const r of rows.slice(hi + 1)) {
+    const nome = String((r && r[0]) ?? '').trim();
+    if (!nome || /^total conta/i.test(nome)) continue;
+    const o = lerValor(r[col.ORCADO]), g = lerValor(r[col.GASTO]);
+    if (o == null && g == null) { const k = chave(nome); if (vistos.has(k)) { bloco++; vistos = new Set(); } vistos.add(k); grupo = nome; continue; }
+    out.push({ bloco, grupo, conta: nome, orcado: o || 0, gasto: g || 0 });
+  }
+  const cond = (topo.match(/Condom[ií]nio:\s*(.+?)\s*(Or[çc]ado|$)/i) || [])[1] || '';
+  return { mes: +p[1], ano: +p[2], cond, blocos: bloco, linhas: out };
+}
+
+function abrirImportarCondominio(){
+  const ov = modal(`<h3>Importar condomínio</h3>
+    <p class="hint">No portal da Umuarama, abra <b>Finanças → Prestação de Contas Desm. Online → Orçado e Gasto</b>, escolha o mês, clique em <b>Consultar</b> e depois em <b>Exportar Excel</b>.
+    Escolha aqui um ou mais arquivos baixados (um por mês). Cada mês importado substitui o que já havia daquele mês.</p>
+    <input type="file" id="cArq" accept=".xlsx,.xls" multiple>
+    <div id="cPrev"></div>
+    <div class="acts"><button class="btn link" id="cCancel">Cancelar</button><button class="btn" id="cOk" disabled>Importar</button></div>`);
+  const q = s => ov.querySelector(s);
+  q('#cCancel').onclick = () => ov.remove();
+  let lotes = [];
+  q('#cArq').onchange = async () => {
+    const fs = [...q('#cArq').files]; if (!fs.length) return;
+    q('#cPrev').innerHTML = '<p class="hint">Lendo arquivos…</p>'; q('#cOk').disabled = true;
+    try {
+      await carregarXLSX();
+      lotes = [];
+      for (const f of fs) {
+        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+        const r = lerOrcadoGasto(wb.Sheets[wb.SheetNames[0]]);
+        lotes.push(r ? { arquivo: f.name, ...r } : { arquivo: f.name, erro: true });
+      }
+      lotes.sort((a, b) => (a.ano - b.ano) || (a.mes - b.mes));
+      q('#cPrev').innerHTML = `<div class="prev">${lotes.map(l => l.erro
+        ? `<div><b>${esc(l.arquivo)}</b><span class="hint" style="color:var(--bad)">não parece o relatório Orçado e Gasto</span></div>`
+        : `<div><b>${MESES[l.mes - 1]}/${l.ano}</b><span class="num hint">${l.blocos} bloco${l.blocos === 1 ? '' : 's'} · ${l.linhas.length} contas</span><span class="num">gasto ${brl0(l.linhas.reduce((s, x) => s + x.gasto, 0))}</span></div>`).join('')}</div>
+        <p class="hint">Condomínio do relatório: <b>${esc([...new Set(lotes.filter(l => !l.erro).map(l => l.cond))].join(', ') || '?')}</b>. Os dados entram em
+        <b>${esc(((S.user.predios || []).find(p => p.id === PREDIO) || {}).nome || PREDIO)}</b>.</p>
+        ${lotes.some(l => !l.erro && l.ano !== ANO) ? `<p class="hint">Há meses de outro ano: eles entram no ano do relatório.</p>` : ''}`;
+      q('#cOk').disabled = !lotes.some(l => !l.erro);
+    } catch (e) { q('#cPrev').innerHTML = `<p class="hint" style="color:var(--bad)">${esc(e.message)}</p>`; }
+  };
+  q('#cOk').onclick = async () => {
+    q('#cOk').disabled = true;
+    try {
+      for (const l of lotes.filter(l => !l.erro)) await rpc('orc_importar_condominio', { p_pin: S.pin, p_predio: PREDIO, p_ano: l.ano, p_mes: l.mes, p_arquivo: l.arquivo, p_linhas: l.linhas });
+      ov.remove(); toast('Condomínio importado'); carregar();
+    } catch (e) { toast(e.message, true); q('#cOk').disabled = false; }
   };
 }
 

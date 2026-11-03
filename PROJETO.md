@@ -28,7 +28,18 @@ Cada linha (`orc_linhas`) tem `fonte`:
 - `pagamentos` (marcada **AUTO** no app): soma dos pagamentos importados (`orc_pagamentos`) do mesmo prédio e ano cuja
   **Finalidade** está em `regra_finalidades` (comparação sem acento e sem pontuação, `orc__chave`) e cuja **Descrição Vertical**
   contém OPEX/CAPEX conforme `regra_vertical`.
-- `manual`: valor digitado pela administração em `realizado_manual`. É o caso das linhas de condomínio, até integrar com a Umuarama.
+- `umuarama` (também **AUTO**): soma do gasto da conta da Umuarama (`orc_condominio`) no ano, pelo bloco (`regra_bloco`) e pela
+  conta (`regra_conta`, chave sem acento). É o caso das linhas de condomínio do JML desde 03/11/2026.
+- `manual`: valor digitado pela administração em `realizado_manual`. Não tem valor por mês, então some no filtro de mês.
+
+### Condomínio (Umuarama)
+Portal: https://servc9-1.webware.com.br (CondoPro; condomínio 63 Luminus Jardins). Relatório **Finanças → Prestação de Contas Desm.
+Online → Orçado e Gasto**: escolha o mês, *Consultar*, *Exportar Excel*. No app, "Importar condomínio" aceita vários arquivos de uma vez;
+cada mês substitui o que havia daquele mês (`orc_importar_condominio`).
+O relatório vem em blocos sem título (no JML: 1 = Geral, 2 = Residencial, 3 = Comercial). O app separa os blocos quando um grupo
+(ex.: "Recepção - Despesa Fixa") se repete. Se a Umuarama mudar o layout, confira na prévia se continuam saindo 3 blocos.
+Carga inicial: jan a out/2026 lidos da tela do portal, nov/2026 pelo Excel. Os valores bateram com a planilha da Sara até setembro.
+Sem API: a importação automática exigiria guardar a senha do portal num servidor, por isso ficou manual (1 arquivo por mês).
 
 Os pagamentos vêm da planilha **2026-Controle de pagamentos-OPR00291_OPEX-CAPEX.xlsx**
 (SharePoint `OPR_MonthlyReports` → `1-GERÊNCIA/1-MONTLHY/2026/1-MONTLHY`), uma aba por prédio (Vhouse, JML747, AVNU, JFL125, VO699).
@@ -36,7 +47,8 @@ O admin importa pelo botão "Importar pagamentos": o app lê o .xlsx no navegado
 todos os pagamentos daquele prédio e ano. Datas inválidas na planilha (ex.: 30/02/2026) entram sem data.
 
 ## RPCs
-orc_login, orc_painel, orc_detalhe, orc_importar, orc_finalidades, orc_salvar_linha, orc_excluir_linha, orc_usuarios_listar, orc_salvar_usuario.
+orc_login, orc_painel, orc_detalhe, orc_importar, orc_importar_condominio, orc_finalidades, orc_contas, orc_salvar_linha, orc_excluir_linha,
+orc_usuarios_listar, orc_salvar_usuario.
 Todas `SECURITY DEFINER`, validando o PIN (`orc__usuario`), o prédio (`orc__predio`) e, nas de edição, o papel admin (`orc__admin`).
 
 ## Pendências
@@ -46,5 +58,4 @@ Todas `SECURITY DEFINER`, validando o PIN (`orc__usuario`), o prédio (`orc__pre
 - A seção "Manutenção Comercial" (códigos 3092 e 3098) estava sem título na planilha; o nome foi deduzido. Confirmar.
 - Leitura automática do SharePoint: pedir à TI um app no Azure (Microsoft Graph, `Sites.Selected` só no site OPR_MonthlyReports) e uma
   Edge Function com agendamento que chame `orc_importar`.
-- Condomínio: integrar com a plataforma da Umuarama (falta saber se há API ou exportação).
 - Cadastrar o orçamento dos outros prédios e os PINs dos líderes (a Sara faz pelo botão "Equipe").
