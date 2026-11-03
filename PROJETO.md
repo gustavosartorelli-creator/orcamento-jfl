@@ -14,12 +14,14 @@ Perfis por PIN de 4 dígitos (`orc_usuarios`, independente do app de governança
 - **Banco:** o mesmo Supabase do app de governança (`zzppioqshjiltllfpttg`), tabelas com prefixo `orc_`. Os prédios vêm de `gov_predios`.
 - **Mudanças de banco:** `sql/` (uma por data).
 - **Testar localmente:** `powershell -File .claude/serve.ps1` e abrir http://localhost:8787.
-- **Site:** https://orcamento-jfl.netlify.app (Netlify, projeto `orcamento-jfl`, publica a branch `main`)
-- **Repositório:** https://github.com/gustavosartorelli-creator/orcamento-jfl (privado, branch `main`)
-- **Como publicar:** igual ao app de governança. Envie os arquivos alterados para a `main` (sem Git, pelo GitHub no Chrome:
+- **Site:** https://gustavosartorelli-creator.github.io/orcamento-jfl/ (GitHub Pages, branch `main`, pasta raiz). Publica sozinho a
+  cada commit na `main`, em cerca de 1 minuto.
+- **Repositório:** https://github.com/gustavosartorelli-creator/orcamento-jfl (**público**, exigência do Pages no plano gratuito;
+  os dados continuam protegidos pelo PIN nas RPCs). Nunca coloque PINs ou chaves secretas nos arquivos.
+- **Como publicar:** envie os arquivos alterados para a `main` (sem Git, pelo GitHub no Chrome:
   *Add file → Upload files → Commit directly to main*; para a pasta `sql/`, use a URL `.../upload/main/sql`). Não envie a pasta `.claude/`.
-- **Atenção (03/11/2026):** o projeto foi criado com a equipe do Netlify sem créditos ("production deploys are paused"), então a
-  primeira publicação ficou *Skipped*. Quando o ciclo virar, abra o projeto no Netlify → *Deploys* → *Trigger deploy → Deploy project*.
+- **Netlify:** existe também o projeto `orcamento-jfl` (https://orcamento-jfl.netlify.app), criado em 03/11/2026 com a equipe sem
+  créditos, por isso nunca publicou. Ciclo de cobrança: 22 a 21 de cada mês. Pode ser apagado ou usado depois.
 
 ## Como o realizado é calculado
 Cada linha (`orc_linhas`) tem `fonte`:

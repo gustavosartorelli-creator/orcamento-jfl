@@ -72,6 +72,8 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .hint{font-size:13px;color:var(--muted)}
 
 /* Resumo */
+.grp{display:flex;align-items:baseline;gap:10px;font-size:12px;font-weight:600;color:var(--brand);text-transform:uppercase;letter-spacing:.14em;margin:0 2px 8px}
+.grp .tot{margin-left:auto;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
 .stat{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--jfl-bronze);border-radius:var(--r);padding:14px 16px}
 .stat .lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
@@ -79,7 +81,9 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .stat .s{font-size:12px;color:var(--muted);margin-top:2px}
 .stat.bad{border-top-color:var(--bad)} .stat.bad .v{color:var(--bad)}
 .stat.ok{border-top-color:var(--ok)}
-@media(max-width:720px){ .stats{grid-template-columns:repeat(2,1fr)} .stat .v{font-size:21px} }
+.stat.wide{grid-column:span 3}
+@media(max-width:720px){ .stats{grid-template-columns:repeat(2,1fr)} .stat .v{font-size:21px} .stat.wide{grid-column:span 1} }
+@media(max-width:560px){ header.top h1{min-width:calc(100% - 90px)} }
 
 /* Linhas */
 .sec-t{display:flex;align-items:baseline;gap:10px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin:24px 2px 8px}
@@ -181,6 +185,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
     <h1><span class="sub" id="hdSub">Orçamento</span><br><span id="hdNome"></span></h1>
     <select id="selPredio" aria-label="Prédio"></select>
     <select id="selAno" aria-label="Ano"></select>
+    <select id="selMes" aria-label="Mês"></select>
     <button class="btn-ghost" id="btnSair">Sair</button>
   </header>
   <main>
@@ -228,6 +233,19 @@ function fracAno(ano){
   if (ano < y) return 1; if (ano > y) return 0;
   return (m - 1 + d / new Date(y, m, 0).getDate()) / 12;
 }
+// O mesmo, para o período do filtro (ano inteiro ou um mês)
+function fracPeriodo(){
+  if (!MES) return fracAno(ANO);
+  const [y, m, d] = hojeISO().split('-').map(Number), a = ANO * 12 + MES, h = y * 12 + m;
+  return a < h ? 1 : a > h ? 0 : d / new Date(y, m, 0).getDate();
+}
+// Orçado e realizado da linha no período. Realizado manual só existe no total do ano: no filtro de mês vem null.
+function valores(l){
+  if (!MES) return { o: +l.orcado_ano, r: +l.realizado };
+  const k = `${ANO}-${String(MES).padStart(2, '0')}`;
+  return { o: +l.orcado_mes, r: l.fonte === 'pagamentos' ? +((l.meses || {})[k] || 0) : null };
+}
+const nomePeriodo = () => MES ? `${MESES[MES - 1]}/${String(ANO).slice(2)}` : String(ANO);
 
 let toastT;
 function toast(msg, err){ const t = $('#toast'); t.textContent = msg; t.className = err ? 'err' : ''; clearTimeout(toastT); toastT = setTimeout(() => t.className = 'hidden', err ? 4500 : 2500); }
@@ -248,7 +266,7 @@ function modal(html){
 
 /* ================= Sessão / Login ================= */
 let S = { pin: null, user: null };
-let PREDIO = null, ANO = +hojeISO().slice(0, 4), DEP = null;
+let PREDIO = null, ANO = +hojeISO().slice(0, 4), DEP = null, MES = 0; // MES 0 = ano inteiro
 let D = { linhas: [], importacao: null };
 let pinBuf = '';
 const isAdmin = () => S.user && S.user.papel === 'admin';
@@ -295,6 +313,9 @@ function start(){
   $('#selAno').innerHTML = [y + 1, y, y - 1].filter(a => a >= 2026).map(a => `<option>${a}</option>`).join('');
   $('#selAno').value = ANO;
   $('#selAno').onchange = () => { ANO = +$('#selAno').value; carregar(); };
+  $('#selMes').innerHTML = '<option value="0">Ano inteiro</option>' + MESES.map((m, i) => `<option value="${i + 1}">${m[0].toUpperCase() + m.slice(1)}</option>`).join('');
+  $('#selMes').value = MES;
+  $('#selMes').onchange = () => { MES = +$('#selMes').value; render(); };
   carregar();
 }
 
@@ -327,39 +348,65 @@ function render(){
   const ls = D.linhas.filter(l => l.departamento === DEP);
   if (!ls.length) { $('#conteudo').innerHTML = `<div class="empty"><div class="ttl">Sem linhas de orçamento</div>${isAdmin() ? 'Use “Nova linha” para cadastrar.' : 'A administração ainda não cadastrou o orçamento deste departamento.'}</div>`; return; }
 
-  const f = fracAno(ANO);
-  const orc = ls.reduce((s, l) => s + +l.orcado_ano, 0), real = ls.reduce((s, l) => s + +l.realizado, 0);
-  const estouradas = ls.filter(l => +l.realizado > +l.orcado_ano).length;
-  const acima = ls.filter(l => +l.orcado_ano > 0 && +l.realizado / +l.orcado_ano > f + 0.1 && +l.realizado <= +l.orcado_ano).length;
-  let html = `<div class="stats">
-    <div class="stat"><div class="lbl">Orçado ${ANO}</div><div class="v num">${brl0(orc)}</div><div class="s">${brl0(orc / 12)} por mês</div></div>
-    <div class="stat"><div class="lbl">Realizado</div><div class="v num">${brl0(real)}</div><div class="s">${pct(real / orc)} do ano · calendário em ${pct(f)}</div></div>
-    <div class="stat ${orc - real < 0 ? 'bad' : 'ok'}"><div class="lbl">Resta</div><div class="v num">${brl0(orc - real)}</div><div class="s">${f < 1 ? `${brl0(Math.max(0, orc - real) / Math.max(1, 12 - Math.floor(f * 12)))} por mês até dezembro` : 'ano encerrado'}</div></div>
-    <div class="stat ${estouradas ? 'bad' : ''}"><div class="lbl">Atenção</div><div class="v num">${estouradas} estourada${estouradas === 1 ? '' : 's'}</div><div class="s">${acima} acima do ritmo do ano</div></div>
-  </div>`;
+  const f = fracPeriodo();
+  let html = [['condominio', 'Condomínio'], ['spe', 'SPE']]
+    .map(([o, nome]) => resumoHTML(nome, ls.filter(l => l.origem === o), f)).join('');
 
   const secoes = [];
   ls.forEach(l => { let s = secoes.find(s => s.nome === l.secao); if (!s) secoes.push(s = { nome: l.secao, linhas: [] }); s.linhas.push(l); });
   for (const s of secoes) {
-    const so = s.linhas.reduce((a, l) => a + +l.orcado_ano, 0), sr = s.linhas.reduce((a, l) => a + +l.realizado, 0);
-    html += `<div class="sec-t">${esc(s.nome)}<span class="tot num">${brl0(sr)} de ${brl0(so)}</span></div><div class="tbl">
-      <div class="row head"><div>Item</div><div class="r c-mes">Orçado mês</div><div class="r">Orçado ano</div><div class="r">Realizado</div><div>Consumo</div></div>`;
+    const vs = s.linhas.map(valores), so = vs.reduce((a, v) => a + v.o, 0), sr = vs.reduce((a, v) => a + (v.r || 0), 0);
+    const tot = vs.some(v => v.r != null) ? `${brl0(sr)} de ${brl0(so)}` : `${brl0(so)} orçado`;
+    html += `<div class="sec-t">${esc(s.nome)}<span class="tot num">${tot}</span></div><div class="tbl">
+      <div class="row head"><div>Item</div><div class="r c-mes">Orçado mês</div><div class="r">Orçado ano</div><div class="r">Realizado${MES ? ' ' + MESES[MES - 1] : ''}</div><div>Consumo</div></div>`;
     for (const l of s.linhas) html += linhaHTML(l, f);
     html += '</div>';
   }
-  html += `<p class="hint" style="margin-top:18px">A linha preta em cada barra marca quanto do ano já passou. Barra amarela: gasto acima do ritmo do calendário. Vermelha: orçamento estourado. <span class="tag auto">AUTO</span> = realizado somado dos pagamentos da planilha de controle; as demais são informadas pela administração.</p>`;
+  html += `<p class="hint" style="margin-top:18px">A linha preta em cada barra marca quanto ${MES ? 'do mês' : 'do ano'} já passou. Barra amarela: gasto acima do ritmo do calendário. Vermelha: orçamento ${MES ? 'do mês ' : ''}estourado. <span class="tag auto">AUTO</span> = realizado somado dos pagamentos da planilha de controle; as demais são informadas pela administração${MES ? ', só no total do ano, por isso não aparecem no filtro de mês' : ''}.</p>`;
   $('#conteudo').innerHTML = html;
   $('#conteudo').onclick = e => { const r = e.target.closest('.row[data-id]'); if (r) abrirDetalhe(+r.dataset.id); };
 }
 
+// Bloco de resumo de uma origem (condomínio ou SPE) no período do filtro
+function resumoHTML(nome, ls, f){
+  if (!ls.length) return '';
+  const vs = ls.map(valores), com = vs.filter(v => v.r != null), semDado = vs.length - com.length;
+  const orc = vs.reduce((s, v) => s + v.o, 0), real = com.reduce((s, v) => s + v.r, 0);
+  const estouradas = com.filter(v => v.r > v.o).length;
+  const acima = com.filter(v => v.o > 0 && v.r / v.o > f + 0.1 && v.r <= v.o).length;
+  const ritmo = MES ? 'do mês' : 'do ano';
+  let restaSub;
+  if (MES) restaSub = `${pct(real / orc)} do orçado do mês usado`;
+  else restaSub = f < 1 ? `${brl0(Math.max(0, orc - real) / Math.max(1, 12 - Math.floor(f * 12)))} por mês até dezembro` : 'ano encerrado';
+  const tot = `${ls.length} linha${ls.length === 1 ? '' : 's'}`;
+  if (!com.length) return `<div class="grp">${nome}<span class="tot">${tot}</span></div><div class="stats">
+    <div class="stat"><div class="lbl">Orçado ${nomePeriodo()}</div><div class="v num">${brl0(orc)}</div><div class="s">soma do orçado mensal</div></div>
+    <div class="stat wide"><div class="lbl">Realizado</div><div class="v">—</div><div class="s">O realizado destas linhas é informado só no total do ano. Escolha “Ano inteiro” para ver.</div></div>
+  </div>`;
+  return `<div class="grp">${nome}<span class="tot">${tot}${semDado ? ` · ${semDado} sem valor por mês, fora da conta` : ''}</span></div><div class="stats">
+    <div class="stat"><div class="lbl">Orçado ${nomePeriodo()}</div><div class="v num">${brl0(orc)}</div><div class="s">${MES ? 'soma do orçado mensal' : `${brl0(orc / 12)} por mês`}</div></div>
+    <div class="stat"><div class="lbl">Realizado</div><div class="v num">${brl0(real)}</div><div class="s">${pct(real / orc)} ${MES ? 'do mês' : 'do ano'} · calendário em ${pct(f)}</div></div>
+    <div class="stat ${orc - real < 0 ? 'bad' : 'ok'}"><div class="lbl">Resta</div><div class="v num">${brl0(orc - real)}</div><div class="s">${restaSub}</div></div>
+    <div class="stat ${estouradas ? 'bad' : ''}"><div class="lbl">Atenção</div><div class="v num">${estouradas} estourada${estouradas === 1 ? '' : 's'}</div><div class="s">${acima} acima do ritmo ${ritmo}</div></div>
+  </div>`;
+}
+
 function linhaHTML(l, f){
-  const o = +l.orcado_ano, r = +l.realizado, resta = o - r, u = o > 0 ? r / o : (r > 0 ? Infinity : 0);
+  const { o, r: rv } = valores(l), r = rv || 0, resta = o - r, u = o > 0 ? r / o : (r > 0 ? Infinity : 0);
   const cls = u > 1 ? 'bad' : (u > f + 0.1 ? 'warn' : '');
+  if (rv == null) return `<div class="row" data-id="${l.id}">
+    <div class="nmc"><div class="nm">${l.origem === 'spe' ? '<span class="tag spe">SPE</span>' : ''}${esc(l.complemento)}</div>
+      <div class="meta">${l.codigo ? esc(l.codigo) + ' · ' : ''}${esc(l.finalidade || '')}</div></div>
+    <div class="r num c-mes" data-l="Orçado mês">${brl0(l.orcado_mes)}</div>
+    <div class="r num" data-l="Orçado ano">${brl0(l.orcado_ano)}</div>
+    <div class="r num" data-l="Realizado">—</div>
+    <div class="c-bar"><div class="pct" style="margin-top:0"><span>só total do ano: ${brl0(l.realizado)}</span></div></div>
+  </div>`;
   return `<div class="row" data-id="${l.id}">
     <div class="nmc"><div class="nm">${l.origem === 'spe' ? '<span class="tag spe">SPE</span>' : ''}${l.fonte === 'pagamentos' ? '<span class="tag auto">AUTO</span>' : ''}${esc(l.complemento)}</div>
       <div class="meta">${l.codigo ? esc(l.codigo) + ' · ' : ''}${esc(l.finalidade || '')}</div></div>
     <div class="r num c-mes" data-l="Orçado mês">${brl0(l.orcado_mes)}</div>
-    <div class="r num" data-l="Orçado ano">${brl0(o)}</div>
+    <div class="r num" data-l="Orçado ano">${brl0(l.orcado_ano)}</div>
     <div class="r num" data-l="Realizado">${brl0(r)}</div>
     <div class="c-bar"><div class="bar"><i class="${cls}" style="width:${Math.min(100, u * 100)}%"></i><b style="left:${f * 100}%"></b></div>
       <div class="pct"><span>${isFinite(u) ? pct(u) : 'sem orçado'}</span><span class="num ${resta < 0 ? 'neg' : ''}">${resta < 0 ? 'estourou ' + brl0(-resta) : 'resta ' + brl0(resta)}</span></div></div>
