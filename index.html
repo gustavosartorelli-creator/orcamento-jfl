@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8E4E38">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Orçamento">
+<title>Orçamento por Área · JFL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  /* Paleta JFL (jfl.inc), a mesma do app de governança */
+  --jfl-bronze:#AF8668; --bg:#F5F3F0; --card:#fff; --ink:#111114; --muted:#7A746D; --line:#E3DED8;
+  --brand:#8E4E38; --brand-dk:#6F3B2A; --brand-bg:#F6ECE7;
+  --ok:#2F6B2A; --ok-bg:#E4F0DE; --warn:#B8920F; --warn-bg:#FFF5CC; --bad:#B3261E; --bad-bg:#FBE4E1;
+  --r:4px;
+  --serif:"Newsreader","Iowan Old Style",Georgia,serif;
+  --sans:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 var(--sans)}
+button{font:inherit;cursor:pointer;border:0;border-radius:var(--r)}
+input,select{font:inherit}
+.hidden{display:none!important}
+.logo{display:block;fill:currentColor}
+.num{font-variant-numeric:tabular-nums}
+
+header.top{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 20px 12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header.top .logo{width:30px;height:24px;flex:none}
+header.top .divider{width:1px;height:28px;background:rgba(255,255,255,.25)}
+header.top h1{font-size:16px;margin:0;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
+header.top .sub{font-size:12px;color:rgba(255,255,255,.72);font-weight:500;text-transform:uppercase;letter-spacing:.12em}
+header.top select{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:var(--r);padding:5px 8px;font-size:13px}
+header.top select option{color:var(--ink)}
+.btn-ghost{background:transparent;color:#fff;padding:6px 12px;font-size:13px;border:1px solid rgba(255,255,255,.4)}
+main{max-width:1100px;margin:0 auto;padding:20px}
+
+/* Login */
+#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:var(--brand);color:#fff}
+#login .logo{width:74px;height:60px;margin-bottom:22px}
+#login h2{margin:0 0 2px;font:400 26px/1.2 var(--serif)}
+#login h2 i{color:var(--jfl-bronze)}
+#login p{margin:0 0 28px;color:rgba(255,255,255,.72);font-size:13px;text-transform:uppercase;letter-spacing:.14em}
+.pins{display:flex;gap:16px;margin-bottom:12px}
+.pins span{width:14px;height:14px;border-radius:50%;border:1px solid rgba(255,255,255,.6)}
+.pins span.on{background:#fff;border-color:#fff}
+.pins.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+#loginMsg{min-height:22px;font-size:14px;color:#FFE0C2;margin-bottom:12px}
+.pad{display:grid;grid-template-columns:repeat(3,74px);gap:14px}
+.pad button{height:74px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.3);color:#fff;font:300 28px var(--sans)}
+.pad button:active{background:rgba(255,255,255,.3)}
+.pad .txt{font-size:18px;border:0}
+
+/* Abas e barra */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tabs button{background:none;padding:10px 14px;font-size:14px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;border-radius:0;white-space:nowrap;letter-spacing:.02em}
+.tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
+.toolbar .grow{flex:1}
+.btn{background:var(--brand);color:#fff;padding:9px 14px;font-size:14px;font-weight:600}
+.btn.sec{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+.btn.link{background:none;color:var(--muted);text-decoration:underline;padding:6px}
+.btn.danger{background:#fff;color:var(--bad);border:1px solid var(--bad)}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{font-size:13px;color:var(--muted)}
+
+/* Resumo */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
+.stat{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--jfl-bronze);border-radius:var(--r);padding:14px 16px}
+.stat .lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+.stat .v{font:400 26px/1.15 var(--serif);margin-top:4px}
+.stat .s{font-size:12px;color:var(--muted);margin-top:2px}
+.stat.bad{border-top-color:var(--bad)} .stat.bad .v{color:var(--bad)}
+.stat.ok{border-top-color:var(--ok)}
+@media(max-width:720px){ .stats{grid-template-columns:repeat(2,1fr)} .stat .v{font-size:21px} }
+
+/* Linhas */
+.sec-t{display:flex;align-items:baseline;gap:10px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin:24px 2px 8px}
+.sec-t .tot{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:500}
+.tbl{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.row{display:grid;grid-template-columns:minmax(0,2.4fr) 1fr 1fr 1fr 1.3fr;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer}
+.row:first-child{border-top:0}
+.row:hover{background:#FBFAF8}
+.row.head{cursor:default;background:#FAF9F7;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding-top:9px;padding-bottom:9px}
+.row.head:hover{background:#FAF9F7}
+.row .r{text-align:right}
+.row .nm{font-weight:600;font-size:15px}
+.row .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.row .neg{color:var(--bad);font-weight:600}
+.tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;padding:1px 5px;border-radius:2px;border:1px solid var(--line);color:var(--muted);vertical-align:1px;margin-right:4px;background:#fff}
+.tag.spe{border-color:var(--brand);color:var(--brand)}
+.tag.auto{border-color:#93C285;color:var(--ok)}
+.bar{position:relative;height:8px;background:#EEEAE5;border-radius:2px;overflow:visible}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ok);border-radius:2px;max-width:100%}
+.bar i.warn{background:var(--warn)} .bar i.bad{background:var(--bad)}
+.bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.55}
+.pct{font-size:12px;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between}
+@media(max-width:720px){
+  .row{grid-template-columns:1fr 1fr;gap:6px 12px}
+  .row.head{display:none}
+  .row .nmc{grid-column:1/-1}
+  .row .c-mes{display:none}
+  .row .c-bar{grid-column:1/-1}
+  .row .r::before{content:attr(data-l);display:block;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+  .row .r{text-align:left}
+}
+.empty{text-align:center;color:var(--muted);padding:48px 16px}
+.empty .ttl{font:400 24px var(--serif);color:var(--ink);margin-bottom:6px}
+
+/* Modal */
+.ov{position:fixed;inset:0;background:rgba(17,17,20,.45);z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.md{background:#fff;border-radius:var(--r);width:100%;max-width:720px;padding:22px 22px 18px;position:relative}
+.md h3{margin:0 0 2px;font:400 24px/1.2 var(--serif)}
+.md .x{position:absolute;right:12px;top:10px;background:none;font-size:20px;color:var(--muted);padding:6px 10px}
+.md .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+.md .acts .grow{flex:1}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}
+.kv div{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.kv span{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em}
+.kv b{font:400 20px/1.2 var(--serif)}
+@media(max-width:560px){ .kv{grid-template-columns:repeat(2,1fr)} }
+.meses{display:flex;align-items:flex-end;gap:4px;height:120px;margin:8px 0 4px;position:relative;border-bottom:1px solid var(--line)}
+.meses .m{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
+.meses .m i{display:block;background:var(--jfl-bronze);border-radius:2px 2px 0 0;min-height:1px}
+.meses .m i.over{background:var(--bad)}
+.meses .ref{position:absolute;left:0;right:0;border-top:1px dashed var(--ink);opacity:.45}
+.meses-l{display:flex;gap:4px;font-size:10px;color:var(--muted);text-transform:uppercase}
+.meses-l span{flex:1;text-align:center}
+.pg{font-size:14px;border-top:1px solid var(--line);padding:9px 0;display:flex;gap:12px}
+.pg .d{color:var(--muted);font-size:12px;min-width:74px}
+.pg .t{flex:1;min-width:0}
+.pg .t small{display:block;color:var(--muted);font-size:12px}
+.pg .v{font-weight:600;white-space:nowrap}
+.fld{display:flex;flex-direction:column;gap:4px;margin-top:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.fld input,.fld select{border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;font-size:15px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:400;background:#fff}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px}
+@media(max-width:560px){ .grid3{grid-template-columns:1fr 1fr} }
+.seg{display:flex;border:1px solid var(--brand);border-radius:var(--r);overflow:hidden;margin-top:4px}
+.seg button{flex:1;background:#fff;color:var(--brand);padding:8px;font-size:14px;border-radius:0;text-transform:none;letter-spacing:0}
+.seg button.on{background:var(--brand);color:#fff}
+.fins{max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--r);margin-top:6px}
+.fins label{display:flex;gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--line);font-size:14px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)}
+.fins label:first-child{border-top:0}
+.fins label small{color:var(--muted);margin-left:auto;white-space:nowrap}
+.fins label em{font-style:normal;color:var(--bad);font-size:11px}
+.prev{border:1px solid var(--line);border-radius:var(--r);margin-top:12px}
+.prev div{display:flex;gap:10px;padding:9px 12px;border-top:1px solid var(--line);font-size:14px;align-items:center}
+.prev div:first-child{border-top:0}
+.prev div b{flex:1}
+.user{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0;font-size:14px}
+.user b{flex:1}
+.user.off{opacity:.5}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:var(--r);font-size:14px;z-index:40;max-width:90vw}
+#toast.err{background:var(--bad)}
+</style>
+</head>
+<body>
+
+<section id="login">
+  <svg class="logo" viewBox="0 0 1152 919.3" aria-label="JFL"><polygon points="899.5 688.1 899.5 12.4 783.1 12.4 783.1 722.8 1141.8 722.8 1141.8 688.1 899.5 688.1"/><polygon points="367.5 722.8 484.7 722.8 484.7 241 607.4 241 607.4 206.3 484.7 206.3 484.7 47.2 726.4 47.2 726.4 12.4 367.5 12.4 367.5 722.8"/><path d="M209.1,12.4H20.7v34.7h121.5v553.2c0,228.4-30.4,261.4-132,284l3.5,22.6c139-24.3,245.8-85.1,245.8-308.3V12.4h-50.4Z"/></svg>
+  <h2>Orçamento <i>por área</i></h2>
+  <p>Digite seu PIN</p>
+  <div class="pins" id="pins"><span></span><span></span><span></span><span></span></div>
+  <div id="loginMsg"></div>
+  <div class="pad" id="pad"></div>
+</section>
+
+<section id="app" class="hidden">
+  <header class="top">
+    <svg class="logo" viewBox="0 0 1152 919.3" aria-label="JFL"><polygon points="899.5 688.1 899.5 12.4 783.1 12.4 783.1 722.8 1141.8 722.8 1141.8 688.1 899.5 688.1"/><polygon points="367.5 722.8 484.7 722.8 484.7 241 607.4 241 607.4 206.3 484.7 206.3 484.7 47.2 726.4 47.2 726.4 12.4 367.5 12.4 367.5 722.8"/><path d="M209.1,12.4H20.7v34.7h121.5v553.2c0,228.4-30.4,261.4-132,284l3.5,22.6c139-24.3,245.8-85.1,245.8-308.3V12.4h-50.4Z"/></svg>
+    <span class="divider"></span>
+    <h1><span class="sub" id="hdSub">Orçamento</span><br><span id="hdNome"></span></h1>
+    <select id="selPredio" aria-label="Prédio"></select>
+    <select id="selAno" aria-label="Ano"></select>
+    <button class="btn-ghost" id="btnSair">Sair</button>
+  </header>
+  <main>
+    <div class="tabs" id="tabs"></div>
+    <div class="toolbar" id="adminBar"></div>
+    <div id="conteudo"></div>
+  </main>
+</section>
+
+<div id="toast" class="hidden"></div>
+
+<script>
+/* ================= Config ================= */
+const SUPABASE_URL = 'https://zzppioqshjiltllfpttg.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_gESIDVWQtHFMkCDzwP7w2g_17eYXfzK';
+const TZ = 'America/Sao_Paulo';
+const XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+
+const DEPTOS = { manutencao: 'Manutenção', governanca: 'Governança', recepcao: 'Recepção' }; // para criar outro departamento, basta adicionar aqui
+const PAPEIS = { admin: 'Administração (edita)', gestor: 'Gestor (vê tudo)', lider: 'Líder de departamento' };
+// Aba da planilha de pagamentos → prédio
+const ABAS = { VHOUSE: 'vhouse', JML747: 'jml', JML: 'jml', AVNU: 'avnu', JFL125: 'jfl125', VO699: 'vo699' };
+const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+/* ================= Utils ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('orc_'+k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v){ try { localStorage.setItem('orc_'+k, JSON.stringify(v)); } catch {} },
+  del(k){ try { localStorage.removeItem('orc_'+k); } catch {} }
+};
+const brl = v => (+v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const brl0 = v => (+v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const pct = v => isFinite(v) ? `${Math.round(v * 100)}%` : '—';
+const dataBR = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+const quando = iso => iso ? new Date(iso).toLocaleString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+const chave = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]/g, ''); // igual a orc__chave no banco
+const hojeISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
+// Quanto do ano já passou (para comparar o consumo com o calendário)
+function fracAno(ano){
+  const [y, m, d] = hojeISO().split('-').map(Number);
+  if (ano < y) return 1; if (ano > y) return 0;
+  return (m - 1 + d / new Date(y, m, 0).getDate()) / 12;
+}
+
+let toastT;
+function toast(msg, err){ const t = $('#toast'); t.textContent = msg; t.className = err ? 'err' : ''; clearTimeout(toastT); toastT = setTimeout(() => t.className = 'hidden', err ? 4500 : 2500); }
+
+async function rpc(fn, args){
+  const { data, error } = await sb.rpc(fn, args);
+  if (error) throw new Error(error.message || 'Erro');
+  return data;
+}
+
+function modal(html){
+  const ov = document.createElement('div'); ov.className = 'ov';
+  ov.innerHTML = `<div class="md"><button class="x" aria-label="Fechar">✕</button>${html}</div>`;
+  ov.onclick = e => { if (e.target === ov || e.target.classList.contains('x')) ov.remove(); };
+  document.body.appendChild(ov);
+  return ov;
+}
+
+/* ================= Sessão / Login ================= */
+let S = { pin: null, user: null };
+let PREDIO = null, ANO = +hojeISO().slice(0, 4), DEP = null;
+let D = { linhas: [], importacao: null };
+let pinBuf = '';
+const isAdmin = () => S.user && S.user.papel === 'admin';
+
+function buildPad(){
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  $('#pad').innerHTML = keys.map(k => k === '' ? '<span></span>' : `<button data-k="${k}" class="${k==='⌫'?'txt':''}">${k}</button>`).join('');
+  $('#pad').onclick = e => { const k = e.target.dataset.k; if (!k) return; if (k === '⌫') pinBuf = pinBuf.slice(0,-1); else if (pinBuf.length < 4) pinBuf += k; drawPins(); if (pinBuf.length === 4) tryLogin(pinBuf); };
+  document.addEventListener('keydown', e => { if ($('#login').classList.contains('hidden')) return; if (/^\d$/.test(e.key) && pinBuf.length < 4) { pinBuf += e.key; drawPins(); if (pinBuf.length === 4) tryLogin(pinBuf); } if (e.key === 'Backspace') { pinBuf = pinBuf.slice(0,-1); drawPins(); } });
+}
+function drawPins(){ [...$('#pins').children].forEach((s,i) => s.classList.toggle('on', i < pinBuf.length)); }
+
+async function tryLogin(pin){
+  $('#loginMsg').textContent = 'Entrando…';
+  try {
+    const u = await rpc('orc_login', { p_pin: pin });
+    S = { pin, user: u }; store.set('sessao', S); pinBuf = ''; drawPins(); $('#loginMsg').textContent = '';
+    start();
+  } catch (e) {
+    $('#loginMsg').textContent = /PIN/.test(e.message) ? 'PIN incorreto' : 'Sem conexão. Tente de novo.';
+    $('#pins').classList.add('shake'); setTimeout(() => $('#pins').classList.remove('shake'), 400);
+    pinBuf = ''; drawPins();
+  }
+}
+
+function logout(){
+  store.del('sessao'); S = { pin: null, user: null };
+  $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+}
+$('#btnSair').onclick = logout;
+
+function start(){
+  const u = S.user;
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#hdNome').textContent = u.nome + (u.papel === 'lider' ? ' · ' + (DEPTOS[u.departamento] || u.departamento) : '');
+  const predios = u.predios || [];
+  PREDIO = predios.some(p => p.id === store.get('predio')) ? store.get('predio') : (u.predio || (predios[0] && predios[0].id));
+  $('#selPredio').innerHTML = predios.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('');
+  $('#selPredio').value = PREDIO;
+  $('#selPredio').classList.toggle('hidden', predios.length < 2);
+  $('#hdSub').textContent = predios.length === 1 ? `Orçamento · ${predios[0].nome}` : 'Orçamento';
+  $('#selPredio').onchange = () => { PREDIO = $('#selPredio').value; store.set('predio', PREDIO); carregar(); };
+  const y = +hojeISO().slice(0, 4);
+  $('#selAno').innerHTML = [y + 1, y, y - 1].filter(a => a >= 2026).map(a => `<option>${a}</option>`).join('');
+  $('#selAno').value = ANO;
+  $('#selAno').onchange = () => { ANO = +$('#selAno').value; carregar(); };
+  carregar();
+}
+
+/* ================= Painel ================= */
+async function carregar(){
+  $('#conteudo').innerHTML = '<div class="empty">Carregando…</div>';
+  try { D = await rpc('orc_painel', { p_pin: S.pin, p_predio: PREDIO, p_ano: ANO }); }
+  catch (e) { $('#conteudo').innerHTML = `<div class="empty"><div class="ttl">Não foi possível carregar</div>${esc(e.message)}</div>`; return; }
+  render();
+}
+
+function deptosVisiveis(){
+  if (S.user.papel === 'lider') return [S.user.departamento];
+  const comLinhas = new Set(D.linhas.map(l => l.departamento));
+  return Object.keys(DEPTOS).filter(d => comLinhas.has(d) || isAdmin()).concat([...comLinhas].filter(d => !DEPTOS[d]));
+}
+
+function render(){
+  const deps = deptosVisiveis();
+  if (!deps.includes(DEP)) DEP = deps.includes(store.get('dep')) ? store.get('dep') : deps[0];
+  $('#tabs').innerHTML = deps.length > 1 ? deps.map(d => `<button data-d="${d}" class="${d === DEP ? 'on' : ''}">${esc(DEPTOS[d] || d)}</button>`).join('') : '';
+  $('#tabs').classList.toggle('hidden', deps.length < 2);
+  $('#tabs').onclick = e => { const d = e.target.dataset.d; if (!d) return; DEP = d; store.set('dep', d); render(); };
+
+  const imp = D.importacao;
+  $('#adminBar').innerHTML = `<span class="hint grow">${imp ? `Pagamentos SPE atualizados em ${quando(imp.em)} (${imp.linhas} lançamentos${imp.por ? ', por ' + esc(imp.por) : ''})` : 'Pagamentos SPE ainda não importados'}</span>`
+    + (isAdmin() ? `<button class="btn sec" id="bImport">Importar pagamentos</button><button class="btn sec" id="bNova">Nova linha</button><button class="btn sec" id="bEquipe">Equipe</button>` : '');
+  if (isAdmin()) { $('#bImport').onclick = abrirImportar; $('#bNova').onclick = () => abrirEditor({ departamento: DEP, origem: 'condominio', fonte: 'manual' }); $('#bEquipe').onclick = abrirEquipe; }
+
+  const ls = D.linhas.filter(l => l.departamento === DEP);
+  if (!ls.length) { $('#conteudo').innerHTML = `<div class="empty"><div class="ttl">Sem linhas de orçamento</div>${isAdmin() ? 'Use “Nova linha” para cadastrar.' : 'A administração ainda não cadastrou o orçamento deste departamento.'}</div>`; return; }
+
+  const f = fracAno(ANO);
+  const orc = ls.reduce((s, l) => s + +l.orcado_ano, 0), real = ls.reduce((s, l) => s + +l.realizado, 0);
+  const estouradas = ls.filter(l => +l.realizado > +l.orcado_ano).length;
+  const acima = ls.filter(l => +l.orcado_ano > 0 && +l.realizado / +l.orcado_ano > f + 0.1 && +l.realizado <= +l.orcado_ano).length;
+  let html = `<div class="stats">
+    <div class="stat"><div class="lbl">Orçado ${ANO}</div><div class="v num">${brl0(orc)}</div><div class="s">${brl0(orc / 12)} por mês</div></div>
+    <div class="stat"><div class="lbl">Realizado</div><div class="v num">${brl0(real)}</div><div class="s">${pct(real / orc)} do ano · calendário em ${pct(f)}</div></div>
+    <div class="stat ${orc - real < 0 ? 'bad' : 'ok'}"><div class="lbl">Resta</div><div class="v num">${brl0(orc - real)}</div><div class="s">${f < 1 ? `${brl0(Math.max(0, orc - real) / Math.max(1, 12 - Math.floor(f * 12)))} por mês até dezembro` : 'ano encerrado'}</div></div>
+    <div class="stat ${estouradas ? 'bad' : ''}"><div class="lbl">Atenção</div><div class="v num">${estouradas} estourada${estouradas === 1 ? '' : 's'}</div><div class="s">${acima} acima do ritmo do ano</div></div>
+  </div>`;
+
+  const secoes = [];
+  ls.forEach(l => { let s = secoes.find(s => s.nome === l.secao); if (!s) secoes.push(s = { nome: l.secao, linhas: [] }); s.linhas.push(l); });
+  for (const s of secoes) {
+    const so = s.linhas.reduce((a, l) => a + +l.orcado_ano, 0), sr = s.linhas.reduce((a, l) => a + +l.realizado, 0);
+    html += `<div class="sec-t">${esc(s.nome)}<span class="tot num">${brl0(sr)} de ${brl0(so)}</span></div><div class="tbl">
+      <div class="row head"><div>Item</div><div class="r c-mes">Orçado mês</div><div class="r">Orçado ano</div><div class="r">Realizado</div><div>Consumo</div></div>`;
+    for (const l of s.linhas) html += linhaHTML(l, f);
+    html += '</div>';
+  }
+  html += `<p class="hint" style="margin-top:18px">A linha preta em cada barra marca quanto do ano já passou. Barra amarela: gasto acima do ritmo do calendário. Vermelha: orçamento estourado. <span class="tag auto">AUTO</span> = realizado somado dos pagamentos da planilha de controle; as demais são informadas pela administração.</p>`;
+  $('#conteudo').innerHTML = html;
+  $('#conteudo').onclick = e => { const r = e.target.closest('.row[data-id]'); if (r) abrirDetalhe(+r.dataset.id); };
+}
+
+function linhaHTML(l, f){
+  const o = +l.orcado_ano, r = +l.realizado, resta = o - r, u = o > 0 ? r / o : (r > 0 ? Infinity : 0);
+  const cls = u > 1 ? 'bad' : (u > f + 0.1 ? 'warn' : '');
+  return `<div class="row" data-id="${l.id}">
+    <div class="nmc"><div class="nm">${l.origem === 'spe' ? '<span class="tag spe">SPE</span>' : ''}${l.fonte === 'pagamentos' ? '<span class="tag auto">AUTO</span>' : ''}${esc(l.complemento)}</div>
+      <div class="meta">${l.codigo ? esc(l.codigo) + ' · ' : ''}${esc(l.finalidade || '')}</div></div>
+    <div class="r num c-mes" data-l="Orçado mês">${brl0(l.orcado_mes)}</div>
+    <div class="r num" data-l="Orçado ano">${brl0(o)}</div>
+    <div class="r num" data-l="Realizado">${brl0(r)}</div>
+    <div class="c-bar"><div class="bar"><i class="${cls}" style="width:${Math.min(100, u * 100)}%"></i><b style="left:${f * 100}%"></b></div>
+      <div class="pct"><span>${isFinite(u) ? pct(u) : 'sem orçado'}</span><span class="num ${resta < 0 ? 'neg' : ''}">${resta < 0 ? 'estourou ' + brl0(-resta) : 'resta ' + brl0(resta)}</span></div></div>
+  </div>`;
+}
+
+/* ================= Detalhe da linha ================= */
+async function abrirDetalhe(id){
+  const l = D.linhas.find(x => x.id === id); if (!l) return;
+  const o = +l.orcado_ano, r = +l.realizado;
+  const ov = modal(`<h3>${esc(l.complemento)}</h3>
+    <div class="hint">${esc(DEPTOS[l.departamento] || l.departamento)} · ${esc(l.secao)}${l.codigo ? ' · código ' + esc(l.codigo) : ''}${l.finalidade ? ' · ' + esc(l.finalidade) : ''}</div>
+    <div class="kv"><div><span>Orçado mês</span><b class="num">${brl0(l.orcado_mes)}</b></div><div><span>Orçado ano</span><b class="num">${brl0(o)}</b></div>
+      <div><span>Realizado</span><b class="num">${brl0(r)}</b></div><div><span>Resta</span><b class="num" style="color:${o - r < 0 ? 'var(--bad)' : 'inherit'}">${brl0(o - r)}</b></div></div>
+    <div id="dtCorpo">${l.fonte === 'pagamentos' ? '<div class="hint">Carregando pagamentos…</div>' : `<p class="hint">Realizado informado pela administração${l.origem === 'condominio' ? ' (despesa de condomínio)' : ''}.</p>`}</div>
+    <div class="acts">${isAdmin() ? '<button class="btn sec" id="dtEditar">Editar linha</button>' : ''}<button class="btn" id="dtOk">Fechar</button></div>`);
+  ov.querySelector('#dtOk').onclick = () => ov.remove();
+  if (isAdmin()) ov.querySelector('#dtEditar').onclick = () => { ov.remove(); abrirEditor(l); };
+  if (l.fonte !== 'pagamentos') return;
+  let pgs;
+  try { pgs = await rpc('orc_detalhe', { p_pin: S.pin, p_linha: id }); }
+  catch (e) { ov.querySelector('#dtCorpo').innerHTML = `<p class="hint">${esc(e.message)}</p>`; return; }
+  const meses = l.meses || {};
+  const chaves = Object.keys(meses).sort();
+  const lista = [...new Set([...chaves.filter(k => k < `${ANO}-01`), ...MESES.map((_, i) => `${ANO}-${String(i + 1).padStart(2, '0')}`)])];
+  const max = Math.max(+l.orcado_mes, ...lista.map(k => +meses[k] || 0)) || 1;
+  ov.querySelector('#dtCorpo').innerHTML = `
+    <div class="sec-t" style="margin-top:6px">Gasto por mês<span class="tot">tracejado = orçado do mês</span></div>
+    <div class="meses"><div class="ref" style="bottom:${+l.orcado_mes / max * 100}%"></div>${lista.map(k => { const v = +meses[k] || 0; return `<div class="m" title="${k}: ${brl(v)}"><i class="${v > +l.orcado_mes ? 'over' : ''}" style="height:${v / max * 100}%"></i></div>`; }).join('')}</div>
+    <div class="meses-l">${lista.map(k => `<span>${MESES[+k.slice(5) - 1]}${k.slice(0, 4) != ANO ? '/' + k.slice(2, 4) : ''}</span>`).join('')}</div>
+    <div class="sec-t">${pgs.length} pagamento${pgs.length === 1 ? '' : 's'}</div>
+    ${pgs.length ? pgs.map(p => `<div class="pg"><div class="d">${dataBR(p.data) || (p.mes ? MESES[+p.mes.slice(5, 7) - 1] + '/' + p.mes.slice(2, 4) : '')}</div>
+      <div class="t">${esc(p.descricao || p.finalidade)}<small>${esc(p.fornecedor || '')}${p.nf ? ' · NF ' + esc(p.nf) : ''}${p.pagamento ? ' · pago em ' + dataBR(p.pagamento) : ''}</small></div>
+      <div class="v num">${brl(p.valor)}</div></div>`).join('') : '<p class="hint">Nenhum pagamento encontrado com a regra desta linha.</p>'}`;
+}
+
+/* ================= Editor de linha (admin) ================= */
+let FINS = null;
+async function finalidades(){ if (!FINS) FINS = await rpc('orc_finalidades', { p_pin: S.pin, p_predio: PREDIO, p_ano: ANO }); return FINS; }
+
+async function abrirEditor(l){
+  const novo = !l.id;
+  const secoes = [...new Set(D.linhas.filter(x => x.departamento === (l.departamento || DEP)).map(x => x.secao))];
+  const ov = modal(`<h3>${novo ? 'Nova linha' : 'Editar linha'}</h3>
+    <div class="grid2">
+      <label class="fld">Departamento<select id="eDep">${Object.entries(DEPTOS).map(([k, v]) => `<option value="${k}" ${k === l.departamento ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label class="fld">Seção<input id="eSec" list="eSecs" value="${esc(l.secao || '')}" placeholder="Ex.: Manutenção Residencial"><datalist id="eSecs">${secoes.map(s => `<option value="${esc(s)}">`).join('')}</datalist></label>
+    </div>
+    <label class="fld">Item (complemento)<input id="eComp" value="${esc(l.complemento || '')}"></label>
+    <div class="grid3">
+      <label class="fld">Código<input id="eCod" value="${esc(l.codigo || '')}"></label>
+      <label class="fld" style="grid-column:span 2">Finalidade / projeto<input id="eFin" value="${esc(l.finalidade || '')}"></label>
+    </div>
+    <div class="grid3">
+      <label class="fld">Orçado mês (R$)<input id="eMes" inputmode="decimal" value="${l.orcado_mes ?? ''}"></label>
+      <label class="fld">Orçado ano (R$)<input id="eAno" inputmode="decimal" value="${l.orcado_ano ?? ''}"></label>
+      <label class="fld">Ordem<input id="eOrd" inputmode="numeric" value="${l.ordem ?? ''}"></label>
+    </div>
+    <div class="fld">Origem<div class="seg" id="eOrig"><button data-v="condominio">Condomínio</button><button data-v="spe">SPE</button></div></div>
+    <div class="fld">Realizado<div class="seg" id="eFonte"><button data-v="manual">Digitado</button><button data-v="pagamentos">Somar pagamentos da planilha</button></div></div>
+    <div id="eManual"><label class="fld">Realizado (R$)<input id="eReal" inputmode="decimal" value="${l.realizado_manual ?? ''}"></label></div>
+    <div id="eAuto">
+      <label class="fld">Vertical<select id="eVert"><option value="">Qualquer</option><option ${l.regra_vertical === 'OPEX' ? 'selected' : ''}>OPEX</option><option ${l.regra_vertical === 'CAPEX' ? 'selected' : ''}>CAPEX</option></select></label>
+      <div class="fld">Finalidades da planilha que entram nesta linha<div class="fins" id="eFins"><label>Carregando…</label></div></div>
+      <div class="hint" id="eSoma" style="margin-top:6px"></div>
+    </div>
+    <div class="acts">${novo ? '' : '<button class="btn danger" id="eDel">Excluir</button>'}<span class="grow"></span><button class="btn link" id="eCancel">Cancelar</button><button class="btn" id="eSalvar">Salvar</button></div>`);
+  const q = s => ov.querySelector(s);
+  const st = { origem: l.origem || 'condominio', fonte: l.fonte || 'manual', fins: new Set(l.regra_finalidades || []) };
+  const seg = (id, k) => { const el = q(id); const draw = () => [...el.children].forEach(b => b.classList.toggle('on', b.dataset.v === st[k])); el.onclick = e => { if (!e.target.dataset.v) return; st[k] = e.target.dataset.v; draw(); mostrar(); }; draw(); };
+  const mostrar = () => { q('#eManual').classList.toggle('hidden', st.fonte !== 'manual'); q('#eAuto').classList.toggle('hidden', st.fonte !== 'pagamentos'); desenharFins(); };
+  let fins = [];
+  const desenharFins = () => {
+    if (st.fonte !== 'pagamentos') return;
+    const v = q('#eVert').value;
+    const vis = fins.filter(f => !v || f.vert_tipo === v);
+    // agrupa por chave (a mesma finalidade pode aparecer em OPEX e CAPEX)
+    const porChave = {}; vis.forEach(f => { const c = porChave[f.chave] || (porChave[f.chave] = { chave: f.chave, nome: f.finalidade, qtd: 0, total: 0, outras: [] }); c.qtd += f.qtd; c.total += +f.total; (f.linhas || []).filter(id => id !== l.id).forEach(id => c.outras.push(id)); });
+    const itens = Object.values(porChave).sort((a, b) => (st.fins.has(b.chave) - st.fins.has(a.chave)) || a.nome.localeCompare(b.nome));
+    [...st.fins].filter(c => !porChave[c]).forEach(c => itens.unshift({ chave: c, nome: c, qtd: 0, total: 0, outras: [] }));
+    q('#eFins').innerHTML = itens.length ? itens.map(i => `<label><input type="checkbox" value="${esc(i.chave)}" ${st.fins.has(i.chave) ? 'checked' : ''}> ${esc(i.nome)} ${i.outras.length ? '<em>já usada em outra linha</em>' : ''}<small class="num">${i.qtd} · ${brl0(i.total)}</small></label>`).join('') : '<label>Nenhum pagamento importado para este prédio.</label>';
+    const soma = itens.filter(i => st.fins.has(i.chave)).reduce((s, i) => s + i.total, 0);
+    q('#eSoma').textContent = `Realizado com esta regra: ${brl(soma)}`;
+  };
+  seg('#eOrig', 'origem'); seg('#eFonte', 'fonte');
+  q('#eVert').onchange = desenharFins;
+  q('#eFins').onchange = e => { if (e.target.type !== 'checkbox') return; e.target.checked ? st.fins.add(e.target.value) : st.fins.delete(e.target.value); desenharFins(); };
+  q('#eCancel').onclick = () => ov.remove();
+  mostrar();
+  finalidades().then(f => { fins = f; desenharFins(); }).catch(e => q('#eFins').innerHTML = `<label>${esc(e.message)}</label>`);
+  const n = s => { const t = String(q(s).value).trim(); if (!t) return 0; const x = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t); return isNaN(x) ? NaN : x; };
+  q('#eSalvar').onclick = async () => {
+    const linha = { id: l.id || null, departamento: q('#eDep').value, secao: q('#eSec').value.trim(), complemento: q('#eComp').value.trim(), codigo: q('#eCod').value.trim(),
+      finalidade: q('#eFin').value.trim(), orcado_mes: n('#eMes'), orcado_ano: n('#eAno'), ordem: q('#eOrd').value.trim() ? +q('#eOrd').value : null,
+      origem: st.origem, fonte: st.fonte, realizado_manual: n('#eReal'), regra_vertical: q('#eVert').value, regra_finalidades: [...st.fins] };
+    if (!linha.secao || !linha.complemento) return toast('Preencha seção e item', true);
+    if ([linha.orcado_mes, linha.orcado_ano, linha.realizado_manual].some(isNaN)) return toast('Valor inválido', true);
+    if (linha.fonte === 'pagamentos' && !linha.regra_finalidades.length) return toast('Escolha ao menos uma finalidade', true);
+    q('#eSalvar').disabled = true;
+    try { await rpc('orc_salvar_linha', { p_pin: S.pin, p_predio: PREDIO, p_ano: ANO, p_linha: linha }); ov.remove(); toast('Linha salva'); FINS = null; DEP = linha.departamento; carregar(); }
+    catch (e) { toast(e.message, true); q('#eSalvar').disabled = false; }
+  };
+  if (!novo) q('#eDel').onclick = async () => {
+    if (!confirm(`Excluir a linha “${l.complemento}”?`)) return;
+    try { await rpc('orc_excluir_linha', { p_pin: S.pin, p_predio: PREDIO, p_linha: l.id }); ov.remove(); toast('Linha excluída'); FINS = null; carregar(); }
+    catch (e) { toast(e.message, true); }
+  };
+}
+
+/* ================= Importação da planilha de pagamentos (admin) ================= */
+function carregarXLSX(){
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = XLSX_URL; s.onload = ok; s.onerror = () => erro(new Error('Não foi possível carregar o leitor de Excel')); document.head.appendChild(s); });
+}
+const pad2 = n => String(n).padStart(2, '0');
+// Data da planilha: número de série do Excel ou texto dd/mm/aaaa. Datas impossíveis (30/02) viram nulas.
+function lerData(v){
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') { const d = XLSX.SSF.parse_date_code(v); return d && d.y > 1990 ? `${d.y}-${pad2(d.m)}-${pad2(d.d)}` : null; }
+  const m = String(v).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (!m) return null;
+  const [d, mo, y] = [+m[1], +m[2], +m[3]], dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d ? `${y}-${pad2(mo)}-${pad2(d)}` : null;
+}
+function lerValor(v){
+  if (typeof v === 'number') return v;
+  const t = String(v ?? '').replace(/R\$|\s/g, ''); if (!t) return null;
+  const x = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t);
+  return isNaN(x) ? null : x;
+}
+function lerAba(ws){
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+  const hi = rows.findIndex(r => r && r.some(c => chave(c) === 'FINALIDADE') && r.some(c => chave(c) === 'VALOR'));
+  if (hi < 0) return null;
+  const col = {}; rows[hi].forEach((c, i) => { const k = chave(c); if (k && !(k in col)) col[k] = i; });
+  const g = (r, k) => col[k] == null ? null : r[col[k]];
+  const txt = (r, k) => { const v = g(r, k); return v == null ? '' : String(v).trim(); };
+  const out = [], invalidas = [];
+  for (const r of rows.slice(hi + 1)) {
+    if (!r) continue;
+    const valor = lerValor(g(r, 'VALOR')); if (valor == null || valor === 0) continue;
+    const data = lerData(g(r, 'DATALANC'));
+    if (!data && g(r, 'DATALANC')) invalidas.push(String(g(r, 'DATALANC')));
+    const mes = lerData(g(r, 'MES')) || (data ? data.slice(0, 8) + '01' : null);
+    out.push({ mes: mes && mes.slice(0, 8) + '01', data, cod: txt(r, 'COD'), descricao: txt(r, 'DESCRICAOCOD'), fornecedor: txt(r, 'FORNECEDOR'), nf: txt(r, 'COMPLEMENTONF'),
+      finalidade: txt(r, 'FINALIDADE'), vertical: txt(r, 'DESCRICAOVERTICAL'), valor, venc: lerData(g(r, 'DATAVENC')), pgto: lerData(g(r, 'DATAPGTO')) });
+  }
+  return { linhas: out, invalidas };
+}
+
+function abrirImportar(){
+  const ov = modal(`<h3>Importar pagamentos</h3>
+    <p class="hint">Escolha a planilha <b>2026-Controle de pagamentos-OPR00291_OPEX-CAPEX.xlsx</b> (SharePoint OPR_MonthlyReports → 1-GERÊNCIA → 1-MONTLHY). Baixe uma cópia do SharePoint ou abra pela pasta sincronizada no computador.
+    Os pagamentos de cada prédio são substituídos pelos da planilha, e as linhas <span class="tag auto">AUTO</span> são recalculadas.</p>
+    <input type="file" id="iArq" accept=".xlsx,.xlsm,.xls">
+    <div id="iPrev"></div>
+    <div class="acts"><button class="btn link" id="iCancel">Cancelar</button><button class="btn" id="iOk" disabled>Importar</button></div>`);
+  const q = s => ov.querySelector(s);
+  q('#iCancel').onclick = () => ov.remove();
+  let lotes = [], nomeArq = '';
+  q('#iArq').onchange = async () => {
+    const f = q('#iArq').files[0]; if (!f) return;
+    nomeArq = f.name; q('#iPrev').innerHTML = '<p class="hint">Lendo planilha…</p>'; q('#iOk').disabled = true;
+    try {
+      await carregarXLSX();
+      const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+      const meus = new Set((S.user.predios || []).map(p => p.id));
+      lotes = wb.SheetNames.map(nome => {
+        const predio = ABAS[chave(nome)];
+        if (!predio) return null;
+        const r = lerAba(wb.Sheets[nome]);
+        return r && { aba: nome, predio, pode: meus.has(predio), ...r };
+      }).filter(Boolean);
+      if (!lotes.length) { q('#iPrev').innerHTML = '<p class="hint" style="color:var(--bad)">Nenhuma aba de prédio reconhecida (esperado: Vhouse, JML747, AVNU, JFL125, VO699).</p>'; return; }
+      const nomeP = id => ((S.user.predios || []).find(p => p.id === id) || {}).nome || id;
+      q('#iPrev').innerHTML = `<div class="prev">${lotes.map(l => `<div><b>${esc(l.aba)} → ${esc(nomeP(l.predio))}</b>${l.pode
+        ? `<span class="num">${l.linhas.length} lançamentos · ${brl0(l.linhas.reduce((s, x) => s + x.valor, 0))}</span>`
+        : '<span class="hint">sem acesso, será ignorada</span>'}</div>${l.pode && l.invalidas.length ? `<div class="hint">${l.invalidas.length} data(s) inválida(s) na planilha (${esc(l.invalidas.slice(0, 3).join(', '))}…): esses lançamentos entram, mas sem data.</div>` : ''}`).join('')}</div>`;
+      q('#iOk').disabled = !lotes.some(l => l.pode);
+    } catch (e) { q('#iPrev').innerHTML = `<p class="hint" style="color:var(--bad)">${esc(e.message)}</p>`; }
+  };
+  q('#iOk').onclick = async () => {
+    q('#iOk').disabled = true;
+    try {
+      for (const l of lotes.filter(l => l.pode)) await rpc('orc_importar', { p_pin: S.pin, p_predio: l.predio, p_ano: ANO, p_arquivo: nomeArq, p_linhas: l.linhas });
+      ov.remove(); toast('Pagamentos importados'); FINS = null; carregar();
+    } catch (e) { toast(e.message, true); q('#iOk').disabled = false; }
+  };
+}
+
+/* ================= Equipe (admin) ================= */
+async function abrirEquipe(){
+  const ov = modal(`<h3>Equipe</h3><p class="hint">Quem acessa o orçamento deste prédio. O líder vê só o próprio departamento.</p><div id="uLista"><p class="hint">Carregando…</p></div>
+    <div class="acts"><button class="btn sec" id="uNovo">Novo acesso</button><span class="grow"></span><button class="btn" id="uOk">Fechar</button></div>`);
+  const q = s => ov.querySelector(s);
+  q('#uOk').onclick = () => ov.remove();
+  let lista = [];
+  const desenhar = () => q('#uLista').innerHTML = lista.map(u => `<div class="user ${u.ativo ? '' : 'off'}"><b>${esc(u.nome)}</b>
+    <span class="hint">${u.papel === 'lider' ? esc(DEPTOS[u.departamento] || u.departamento) : esc(PAPEIS[u.papel])}${u.predio ? '' : ' · todos os prédios'} · PIN ${esc(u.pin)}</span>
+    ${u.predio ? `<button class="btn link" data-id="${u.id}">Editar</button>` : ''}</div>`).join('') || '<p class="hint">Ninguém cadastrado.</p>';
+  const recarregar = async () => { try { lista = await rpc('orc_usuarios_listar', { p_pin: S.pin, p_predio: PREDIO }); desenhar(); } catch (e) { q('#uLista').innerHTML = `<p class="hint">${esc(e.message)}</p>`; } };
+  q('#uLista').onclick = e => { const id = e.target.dataset.id; if (id) form(lista.find(u => u.id === id)); };
+  q('#uNovo').onclick = () => form({ papel: 'lider', departamento: DEP, ativo: true });
+  const form = u => {
+    const f = modal(`<h3>${u.id ? 'Editar acesso' : 'Novo acesso'}</h3>
+      <label class="fld">Nome<input id="fNome" value="${esc(u.nome || '')}"></label>
+      <div class="grid2"><label class="fld">PIN (4 dígitos)<input id="fPin" inputmode="numeric" maxlength="4" value="${esc(u.pin || '')}"></label>
+      <label class="fld">Perfil<select id="fPapel">${Object.entries(PAPEIS).map(([k, v]) => `<option value="${k}" ${k === u.papel ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+      <label class="fld" id="fDepL">Departamento<select id="fDep">${Object.entries(DEPTOS).map(([k, v]) => `<option value="${k}" ${k === u.departamento ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      ${u.id ? `<label class="fld" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="fAtivo" ${u.ativo ? 'checked' : ''}> Ativo</label>` : ''}
+      <div class="acts"><button class="btn link" id="fCancel">Cancelar</button><button class="btn" id="fSalvar">Salvar</button></div>`);
+    const g = s => f.querySelector(s);
+    const dep = () => g('#fDepL').classList.toggle('hidden', g('#fPapel').value !== 'lider');
+    g('#fPapel').onchange = dep; dep();
+    g('#fCancel').onclick = () => f.remove();
+    g('#fSalvar').onclick = async () => {
+      const d = { id: u.id || null, nome: g('#fNome').value.trim(), pin: g('#fPin').value.trim(), papel: g('#fPapel').value, departamento: g('#fDep').value, ativo: u.id ? g('#fAtivo').checked : true };
+      if (!d.nome) return toast('Preencha o nome', true);
+      if (!/^\d{4}$/.test(d.pin)) return toast('O PIN tem 4 dígitos', true);
+      try { await rpc('orc_salvar_usuario', { p_pin: S.pin, p_predio: PREDIO, p_usuario: d }); f.remove(); toast('Acesso salvo'); recarregar(); }
+      catch (e) { toast(e.message, true); }
+    };
+  };
+  recarregar();
+}
+
+/* ================= Início ================= */
+buildPad();
+const salvo = store.get('sessao');
+if (salvo && salvo.pin) { S = salvo; start(); rpc('orc_login', { p_pin: salvo.pin }).then(u => { S.user = u; store.set('sessao', S); }).catch(e => { if (/PIN/.test(e.message)) logout(); }); }
+</script>
+</body>
+</html>
