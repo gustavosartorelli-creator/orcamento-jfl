@@ -351,11 +351,17 @@ function render(){
   if (!ls.length) { $('#conteudo').innerHTML = `<div class="empty"><div class="ttl">Sem linhas de orçamento</div>${isAdmin() ? 'Use “Nova linha” para cadastrar.' : 'A administração ainda não cadastrou o orçamento deste departamento.'}</div>`; return; }
 
   const f = fracPeriodo();
-  let html = [['condominio', 'Condomínio'], ['spe', 'SPE']]
-    .map(([o, nome]) => resumoHTML(nome, ls.filter(l => l.origem === o), f)).join('');
+  // SPE separada em OPEX e CAPEX (pela vertical da linha); linhas SPE sem vertical ficam em "SPE".
+  const vert = l => l.origem === 'spe' ? (l.regra_vertical || '') : null;
+  let html = resumoHTML('Condomínio', ls.filter(l => l.origem === 'condominio'), f)
+    + [['OPEX', 'SPE · OPEX'], ['CAPEX', 'SPE · CAPEX'], ['', 'SPE']]
+      .map(([v, nome]) => resumoHTML(nome, ls.filter(l => vert(l) === v), f)).join('');
 
   const secoes = [];
-  ls.forEach(l => { let s = secoes.find(s => s.nome === l.secao); if (!s) secoes.push(s = { nome: l.secao, linhas: [] }); s.linhas.push(l); });
+  const nomeSec = l => vert(l) ? `${l.secao} · ${vert(l)}` : l.secao;
+  ls.forEach(l => { const n = nomeSec(l); let s = secoes.find(s => s.nome === n); if (!s) secoes.push(s = { nome: n, linhas: [] }); s.linhas.push(l); });
+  const ordemSec = s => s.linhas[0].origem !== 'spe' ? 0 : ({ OPEX: 1, CAPEX: 2 }[vert(s.linhas[0])] || 3);
+  secoes.sort((a, b) => ordemSec(a) - ordemSec(b));
   for (const s of secoes) {
     const vs = s.linhas.map(valores), so = vs.reduce((a, v) => a + v.o, 0), sr = vs.reduce((a, v) => a + (v.r || 0), 0);
     const tot = vs.some(v => v.r != null) ? `${brl0(sr)} de ${brl0(so)}` : `${brl0(so)} orçado`;

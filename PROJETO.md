@@ -46,6 +46,14 @@ Os pagamentos vêm da planilha **2026-Controle de pagamentos-OPR00291_OPEX-CAPEX
 O admin importa pelo botão "Importar pagamentos": o app lê o .xlsx no navegador (SheetJS) e chama `orc_importar`, que **substitui**
 todos os pagamentos daquele prédio e ano. Datas inválidas na planilha (ex.: 30/02/2026) entram sem data.
 
+### Importação automática (desde 18/11/2026, só JML)
+Tarefa agendada do Claude desktop **"Orçamento JFL: importar pagamentos do SharePoint"** (`orcamento-jfl-pagamentos-sharepoint`,
+dias úteis às 8h, roda neste PC com o app do Claude aberto). Lê a aba JML747 pelo conector Microsoft 365 (sem app no Azure),
+converte com `automacao/importar-pagamentos.ps1` (mesmas regras do `lerAba` do app) e chama `orc_importar`. Pula se a planilha
+não mudou desde a última importação e não importa se o total cair mais de 10%.
+Usa o usuário admin **"Robô SharePoint"** (`orc_usuarios`, JML); o PIN fica só em `%USERPROFILE%\.orcamento-jfl\robo.json`, fora do repositório.
+Teste manual: `powershell -File automacao\importar-pagamentos.ps1 -Arquivo <texto da aba> -Simular`.
+
 ## RPCs
 orc_login, orc_painel, orc_detalhe, orc_importar, orc_importar_condominio, orc_finalidades, orc_contas, orc_salvar_linha, orc_excluir_linha,
 orc_usuarios_listar, orc_salvar_usuario.
@@ -56,6 +64,8 @@ Todas `SECURITY DEFINER`, validando o PIN (`orc__usuario`), o prédio (`orc__pre
   da planilha da Sara (Eletros OPEX: R$ 82.639,98 nos pagamentos x R$ 10.840 da Sara; parte são locações de TV da RENTV lançadas como
   ELETROS/EQUIPAMENTOS. Mobiliário: R$ 20.820 x R$ 44.320). Confirmar com a Sara e trocar para AUTO no editor.
 - A seção "Manutenção Comercial" (códigos 3092 e 3098) estava sem título na planilha; o nome foi deduzido. Confirmar.
-- Leitura automática do SharePoint: pedir à TI um app no Azure (Microsoft Graph, `Sites.Selected` só no site OPR_MonthlyReports) e uma
-  Edge Function com agendamento que chame `orc_importar`.
+- Leitura automática do SharePoint 100% na nuvem (sem depender deste PC): pedir à TI um app no Azure (Microsoft Graph, `Sites.Selected`
+  só no site OPR_MonthlyReports) e uma Edge Function com agendamento que chame `orc_importar`. Hoje roda pela tarefa agendada acima.
+- Em nov/2026 a Sara passou a lançar a RENTV como finalidade **LOCAÇÃO DE TVS** (27 lançamentos, R$ 220 mil no ano), que não está em
+  nenhuma linha. Também apareceu **"Azulejos e Cer. - Pisos e Par."** (R$ 26 mil). Decidir em qual linha entram.
 - Cadastrar o orçamento dos outros prédios e os PINs dos líderes (a Sara faz pelo botão "Equipe").
