@@ -94,6 +94,9 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .row:hover{background:#FBFAF8}
 .row.head{cursor:default;background:#FAF9F7;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding-top:9px;padding-bottom:9px}
 .row.head:hover{background:#FAF9F7}
+.row.tot{cursor:default;background:#FAF9F7;border-top:2px solid var(--line)}
+.row.tot:hover{background:#FAF9F7}
+.row.tot .nm,.row.tot .r{font-weight:700}
 .row .r{text-align:right}
 .row .nm{font-weight:600;font-size:15px}
 .row .meta{font-size:12px;color:var(--muted);margin-top:2px}
@@ -374,6 +377,7 @@ function render(){
     html += `<div class="sec-t">${esc(s.nome)}<span class="tot num">${tot}</span></div><div class="tbl">
       <div class="row head"><div>Item</div><div class="r c-mes">Orçado mês</div><div class="r">Orçado ano</div><div class="r">Realizado${MES ? ' ' + MESES[MES - 1] : ''}</div><div>Consumo</div></div>`;
     for (const l of s.linhas) html += linhaHTML(l, f);
+    if (s.linhas.length > 1) html += totalHTML(s, vs, f);
     html += '</div>';
   }
   html += `<p class="hint" style="margin-top:18px">A linha preta em cada barra marca quanto ${MES ? 'do mês' : 'do ano'} já passou. Barra amarela: gasto acima do ritmo do calendário. Vermelha: orçamento ${MES ? 'do mês ' : ''}estourado. <span class="tag auto">AUTO</span> = realizado somado automaticamente (SPE: planilha de controle de pagamentos; condomínio: relatório Orçado e Gasto da Umuarama); as demais são informadas pela administração${MES ? ', só no total do ano, por isso não aparecem no filtro de mês' : ''}.</p>`;
@@ -402,6 +406,21 @@ function resumoHTML(nome, ls, f){
     <div class="stat"><div class="lbl">Realizado</div><div class="v num">${brl0(real)}</div><div class="s">${pct(real / orc)} ${MES ? 'do mês' : 'do ano'} · calendário em ${pct(f)}</div></div>
     <div class="stat ${orc - real < 0 ? 'bad' : 'ok'}"><div class="lbl">Resta</div><div class="v num">${brl0(orc - real)}</div><div class="s">${restaSub}</div></div>
     <div class="stat ${estouradas ? 'bad' : ''}"><div class="lbl">Atenção</div><div class="v num">${estouradas} estourada${estouradas === 1 ? '' : 's'}</div><div class="s">${acima} acima do ritmo ${ritmo}</div></div>
+  </div>`;
+}
+
+// Linha de total no fim de cada seção (soma das linhas; no filtro de mês, só as que têm valor por mês entram no realizado)
+function totalHTML(s, vs, f){
+  const om = s.linhas.reduce((a, l) => a + +l.orcado_mes, 0), oa = s.linhas.reduce((a, l) => a + +l.orcado_ano, 0);
+  const com = vs.filter(v => v.r != null), o = com.reduce((a, v) => a + v.o, 0), r = com.reduce((a, v) => a + v.r, 0);
+  const u = o > 0 ? r / o : (r > 0 ? Infinity : 0), resta = o - r, cls = u > 1 ? 'bad' : (u > f + 0.1 ? 'warn' : '');
+  return `<div class="row tot">
+    <div class="nmc"><div class="nm">Total: ${esc(s.nome)}</div><div class="meta">${s.linhas.length} linhas</div></div>
+    <div class="r num c-mes" data-l="Orçado mês">${brl0(om)}</div>
+    <div class="r num" data-l="Orçado ano">${brl0(oa)}</div>
+    <div class="r num" data-l="Realizado">${com.length ? brl0(r) : '—'}</div>
+    <div class="c-bar">${com.length ? `<div class="bar"><i class="${cls}" style="width:${Math.min(100, u * 100)}%"></i><b style="left:${f * 100}%"></b></div>
+      <div class="pct"><span>${isFinite(u) ? pct(u) : 'sem orçado'}</span><span class="num ${resta < 0 ? 'neg' : ''}">${resta < 0 ? 'estourou ' + brl0(-resta) : 'resta ' + brl0(resta)}</span></div>` : ''}</div>
   </div>`;
 }
 
