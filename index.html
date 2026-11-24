@@ -729,7 +729,7 @@ async function abrirEquipe(){
   q('#uOk').onclick = () => ov.remove();
   let lista = [];
   const desenhar = () => q('#uLista').innerHTML = lista.map(u => `<div class="user ${u.ativo ? '' : 'off'}"><b>${esc(u.nome)}</b>
-    <span class="hint">${u.papel === 'lider' ? esc(DEPTOS[u.departamento] || u.departamento) : esc(PAPEIS[u.papel])}${u.predio ? '' : ' · todos os prédios'} · PIN ${esc(u.pin)}</span>
+    <span class="hint">${u.papel === 'lider' ? esc(DEPTOS[u.departamento] || u.departamento) : esc(PAPEIS[u.papel])}${u.predio ? '' : ' · todos os prédios'}${u.pin ? ' · PIN ' + esc(u.pin) : ''}</span>
     ${u.predio ? `<button class="btn link" data-id="${u.id}">Editar</button>` : ''}</div>`).join('') || '<p class="hint">Ninguém cadastrado.</p>';
   const recarregar = async () => { try { lista = await rpc('orc_usuarios_listar', { p_pin: S.pin, p_predio: PREDIO }); desenhar(); } catch (e) { q('#uLista').innerHTML = `<p class="hint">${esc(e.message)}</p>`; } };
   q('#uLista').onclick = e => { const id = e.target.dataset.id; if (id) form(lista.find(u => u.id === id)); };
