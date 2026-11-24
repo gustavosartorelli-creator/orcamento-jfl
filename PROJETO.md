@@ -41,6 +41,14 @@ O relatório vem em blocos sem título (no JML: 1 = Geral, 2 = Residencial, 3 = 
 Carga inicial: jan a out/2026 lidos da tela do portal, nov/2026 pelo Excel. Os valores bateram com a planilha da Sara até setembro.
 Sem API: a importação automática exigiria guardar a senha do portal num servidor, por isso ficou manual (1 arquivo por mês).
 
+### Condomínio completo (aba privada, desde 24/11/2026)
+Aba **"Condomínio completo"** (departamento `condominio`) com uma linha por conta do relatório (todo o plano de contas da Umuarama),
+exceto as contas já ligadas às linhas dos líderes. As linhas têm `privada = true` e só aparecem para usuários com
+`orc_usuarios.ve_privadas` (hoje só o Gustavo); as RPCs escondem e bloqueiam essas linhas para os demais, inclusive a Sara.
+A cada importação da Umuarama, `orc__sync_privadas` cria linhas para contas novas e recalcula o orçado delas
+(orçado mês = último mês importado; orçado ano = meses importados + último orçado x meses que faltam), então editar o orçado
+de uma linha privada à mão não dura até a próxima importação. Seção = bloco · grupo (`orc__secao`).
+
 Os pagamentos vêm da planilha **2026-Controle de pagamentos-OPR00291_OPEX-CAPEX.xlsx**
 (SharePoint `OPR_MonthlyReports` → `1-GERÊNCIA/1-MONTLHY/2026/1-MONTLHY`), uma aba por prédio (Vhouse, JML747, AVNU, JFL125, VO699).
 O admin importa pelo botão "Importar pagamentos": o app lê o .xlsx no navegador (SheetJS) e chama `orc_importar`, que **substitui**

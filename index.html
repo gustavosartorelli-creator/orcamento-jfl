@@ -207,6 +207,9 @@ const XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
 
 const DEPTOS = { manutencao: 'Manutenção', governanca: 'Governança', recepcao: 'Recepção' }; // para criar outro departamento, basta adicionar aqui
+// Abas com linhas privadas (só quem tem ve_privadas vê). "condominio" = todas as contas da Umuarama.
+const DEPTOS_PRIVADOS = { condominio: 'Condomínio completo' };
+const nomeDep = d => DEPTOS[d] || DEPTOS_PRIVADOS[d] || d;
 const PAPEIS = { admin: 'Administração (edita)', gestor: 'Gestor (vê tudo)', lider: 'Líder de departamento' };
 // Aba da planilha de pagamentos → prédio
 const ABAS = { VHOUSE: 'vhouse', JML747: 'jml', JML: 'jml', AVNU: 'avnu', JFL125: 'jfl125', VO699: 'vo699' };
@@ -316,6 +319,8 @@ function start(){
   $('#selMes').innerHTML = '<option value="0">Ano inteiro</option>' + MESES.map((m, i) => `<option value="${i + 1}">${m[0].toUpperCase() + m.slice(1)}</option>`).join('');
   $('#selMes').value = MES;
   $('#selMes').onchange = () => { MES = +$('#selMes').value; render(); };
+  // sessões salvas antes de ve_privadas existir: atualiza o perfil em segundo plano
+  rpc('orc_login', { p_pin: S.pin }).then(u => { S.user = u; store.set('sessao', S); }).catch(() => {});
   carregar();
 }
 
@@ -336,7 +341,7 @@ function deptosVisiveis(){
 function render(){
   const deps = deptosVisiveis();
   if (!deps.includes(DEP)) DEP = deps.includes(store.get('dep')) ? store.get('dep') : deps[0];
-  $('#tabs').innerHTML = deps.length > 1 ? deps.map(d => `<button data-d="${d}" class="${d === DEP ? 'on' : ''}">${esc(DEPTOS[d] || d)}</button>`).join('') : '';
+  $('#tabs').innerHTML = deps.length > 1 ? deps.map(d => `<button data-d="${d}" class="${d === DEP ? 'on' : ''}">${esc(nomeDep(d))}</button>`).join('') : '';
   $('#tabs').classList.toggle('hidden', deps.length < 2);
   $('#tabs').onclick = e => { const d = e.target.dataset.d; if (!d) return; DEP = d; store.set('dep', d); render(); };
 
@@ -348,6 +353,7 @@ function render(){
   if (isAdmin()) { $('#bImport').onclick = abrirImportar; $('#bCond').onclick = abrirImportarCondominio; $('#bNova').onclick = () => abrirEditor({ departamento: DEP, origem: 'condominio', fonte: 'manual' }); $('#bEquipe').onclick = abrirEquipe; }
 
   const ls = D.linhas.filter(l => l.departamento === DEP);
+  if (ls.length && ls.every(l => l.privada)) $('#adminBar').insertAdjacentHTML('beforeend', '<span class="hint" style="flex-basis:100%"><b>Aba privada:</b> só você vê. Uma linha por conta da Umuarama; contas novas entram sozinhas a cada importação.</span>');
   if (!ls.length) { $('#conteudo').innerHTML = `<div class="empty"><div class="ttl">Sem linhas de orçamento</div>${isAdmin() ? 'Use “Nova linha” para cadastrar.' : 'A administração ainda não cadastrou o orçamento deste departamento.'}</div>`; return; }
 
   const f = fracPeriodo();
@@ -426,7 +432,7 @@ async function abrirDetalhe(id){
   const l = D.linhas.find(x => x.id === id); if (!l) return;
   const o = +l.orcado_ano, r = +l.realizado;
   const ov = modal(`<h3>${esc(l.complemento)}</h3>
-    <div class="hint">${esc(DEPTOS[l.departamento] || l.departamento)} · ${esc(l.secao)}${l.codigo ? ' · código ' + esc(l.codigo) : ''}${l.finalidade ? ' · ' + esc(l.finalidade) : ''}</div>
+    <div class="hint">${esc(nomeDep(l.departamento))} · ${esc(l.secao)}${l.codigo ? ' · código ' + esc(l.codigo) : ''}${l.finalidade ? ' · ' + esc(l.finalidade) : ''}</div>
     <div class="kv"><div><span>Orçado mês</span><b class="num">${brl0(l.orcado_mes)}</b></div><div><span>Orçado ano</span><b class="num">${brl0(o)}</b></div>
       <div><span>Realizado</span><b class="num">${brl0(r)}</b></div><div><span>Resta</span><b class="num" style="color:${o - r < 0 ? 'var(--bad)' : 'inherit'}">${brl0(o - r)}</b></div></div>
     <div id="dtCorpo">${l.fonte !== 'manual' ? '<div class="hint">Carregando…</div>' : `<p class="hint">Realizado informado pela administração${l.origem === 'condominio' ? ' (despesa de condomínio)' : ''}.</p>`}</div>
@@ -463,7 +469,7 @@ async function abrirEditor(l){
   const secoes = [...new Set(D.linhas.filter(x => x.departamento === (l.departamento || DEP)).map(x => x.secao))];
   const ov = modal(`<h3>${novo ? 'Nova linha' : 'Editar linha'}</h3>
     <div class="grid2">
-      <label class="fld">Departamento<select id="eDep">${Object.entries(DEPTOS).map(([k, v]) => `<option value="${k}" ${k === l.departamento ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label class="fld">Departamento<select id="eDep">${Object.entries({ ...DEPTOS, ...(S.user.ve_privadas || l.privada ? DEPTOS_PRIVADOS : {}) }).map(([k, v]) => `<option value="${k}" ${k === l.departamento ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
       <label class="fld">Seção<input id="eSec" list="eSecs" value="${esc(l.secao || '')}" placeholder="Ex.: Manutenção Residencial"><datalist id="eSecs">${secoes.map(s => `<option value="${esc(s)}">`).join('')}</datalist></label>
     </div>
     <label class="fld">Item (complemento)<input id="eComp" value="${esc(l.complemento || '')}"></label>
@@ -476,6 +482,8 @@ async function abrirEditor(l){
       <label class="fld">Orçado ano (R$)<input id="eAno" inputmode="decimal" value="${l.orcado_ano ?? ''}"></label>
       <label class="fld">Ordem<input id="eOrd" inputmode="numeric" value="${l.ordem ?? ''}"></label>
     </div>
+    ${S.user.ve_privadas ? `<label class="fld" style="flex-direction:row;align-items:center;gap:8px;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink);font-weight:400">
+      <input type="checkbox" id="ePriv" ${(l.privada ?? !!DEPTOS_PRIVADOS[l.departamento]) ? 'checked' : ''}> Linha privada (só quem vê privadas, hoje só você)</label>` : ''}
     <div class="fld">Origem<div class="seg" id="eOrig"><button data-v="condominio">Condomínio</button><button data-v="spe">SPE</button></div></div>
     <div class="fld">Realizado<div class="seg" id="eFonte"><button data-v="manual">Digitado</button><button data-v="pagamentos">Pagamentos SPE</button><button data-v="umuarama">Conta da Umuarama</button></div></div>
     <div id="eManual"><label class="fld">Realizado (R$)<input id="eReal" inputmode="decimal" value="${l.realizado_manual ?? ''}"></label></div>
@@ -534,7 +542,8 @@ async function abrirEditor(l){
     const linha = { id: l.id || null, departamento: q('#eDep').value, secao: q('#eSec').value.trim(), complemento: q('#eComp').value.trim(), codigo: q('#eCod').value.trim(),
       finalidade: q('#eFin').value.trim(), orcado_mes: n('#eMes'), orcado_ano: n('#eAno'), ordem: q('#eOrd').value.trim() ? +q('#eOrd').value : null,
       origem: st.origem, fonte: st.fonte, realizado_manual: n('#eReal'), regra_vertical: q('#eVert').value, regra_finalidades: [...st.fins],
-      regra_bloco: st.fonte === 'umuarama' ? st.bloco : null, regra_conta: st.fonte === 'umuarama' ? st.conta : null };
+      regra_bloco: st.fonte === 'umuarama' ? st.bloco : null, regra_conta: st.fonte === 'umuarama' ? st.conta : null,
+      privada: q('#ePriv') ? q('#ePriv').checked : undefined };
     if (!linha.secao || !linha.complemento) return toast('Preencha seção e item', true);
     if ([linha.orcado_mes, linha.orcado_ano, linha.realizado_manual].some(isNaN)) return toast('Valor inválido', true);
     if (linha.fonte === 'pagamentos' && !linha.regra_finalidades.length) return toast('Escolha ao menos uma finalidade', true);
