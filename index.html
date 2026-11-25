@@ -449,11 +449,18 @@ function linhaHTML(l, f){
 /* ================= Detalhe da linha ================= */
 async function abrirDetalhe(id){
   const l = D.linhas.find(x => x.id === id); if (!l) return;
-  const o = +l.orcado_ano, r = +l.realizado;
+  // No filtro de mês, os números são só daquele mês; o acumulado aparece só em "Ano inteiro"
+  const { o, r } = valores(l), p = MES ? ' ' + MESES[MES - 1] : '';
+  const kv = MES
+    ? `<div><span>Orçado${p}</span><b class="num">${brl0(o)}</b></div>
+       <div><span>Realizado${p}</span><b class="num">${r == null ? '—' : brl0(r)}</b></div>
+       <div><span>Resta${p}</span><b class="num" style="color:${r != null && o - r < 0 ? 'var(--bad)' : 'inherit'}">${r == null ? '—' : brl0(o - r)}</b></div>
+       <div><span>Orçado ano</span><b class="num">${brl0(l.orcado_ano)}</b></div>`
+    : `<div><span>Orçado mês</span><b class="num">${brl0(l.orcado_mes)}</b></div><div><span>Orçado ano</span><b class="num">${brl0(o)}</b></div>
+       <div><span>Realizado</span><b class="num">${brl0(r)}</b></div><div><span>Resta</span><b class="num" style="color:${o - r < 0 ? 'var(--bad)' : 'inherit'}">${brl0(o - r)}</b></div>`;
   const ov = modal(`<h3>${esc(l.complemento)}</h3>
     <div class="hint">${esc(nomeDep(l.departamento))} · ${esc(l.secao)}${l.codigo ? ' · código ' + esc(l.codigo) : ''}${l.finalidade ? ' · ' + esc(l.finalidade) : ''}</div>
-    <div class="kv"><div><span>Orçado mês</span><b class="num">${brl0(l.orcado_mes)}</b></div><div><span>Orçado ano</span><b class="num">${brl0(o)}</b></div>
-      <div><span>Realizado</span><b class="num">${brl0(r)}</b></div><div><span>Resta</span><b class="num" style="color:${o - r < 0 ? 'var(--bad)' : 'inherit'}">${brl0(o - r)}</b></div></div>
+    <div class="kv">${kv}</div>
     <div id="dtCorpo">${l.fonte !== 'manual' ? '<div class="hint">Carregando…</div>' : `<p class="hint">Realizado informado pela administração${l.origem === 'condominio' ? ' (despesa de condomínio)' : ''}.</p>`}</div>
     <div class="acts">${isAdmin() ? '<button class="btn sec" id="dtEditar">Editar linha</button>' : ''}<button class="btn" id="dtOk">Fechar</button></div>`);
   ov.querySelector('#dtOk').onclick = () => ov.remove();
@@ -468,7 +475,7 @@ async function abrirDetalhe(id){
   const max = Math.max(+l.orcado_mes, ...lista.map(k => +meses[k] || 0)) || 1;
   ov.querySelector('#dtCorpo').innerHTML = `
     <div class="sec-t" style="margin-top:6px">Gasto por mês<span class="tot">tracejado = orçado do mês</span></div>
-    <div class="meses"><div class="ref" style="bottom:${+l.orcado_mes / max * 100}%"></div>${lista.map(k => { const v = +meses[k] || 0; return `<div class="m" title="${k}: ${brl(v)}"><i class="${v > +l.orcado_mes ? 'over' : ''}" style="height:${v / max * 100}%"></i></div>`; }).join('')}</div>
+    <div class="meses"><div class="ref" style="bottom:${+l.orcado_mes / max * 100}%"></div>${lista.map(k => { const v = +meses[k] || 0, sel = MES && k === `${ANO}-${String(MES).padStart(2, '0')}`; return `<div class="m" title="${k}: ${brl(v)}" style="${MES && !sel ? 'opacity:.35' : ''}"><i class="${v > +l.orcado_mes ? 'over' : ''}" style="height:${v / max * 100}%"></i></div>`; }).join('')}</div>
     <div class="meses-l">${lista.map(k => `<span>${MESES[+k.slice(5) - 1]}${k.slice(0, 4) != ANO ? '/' + k.slice(2, 4) : ''}</span>`).join('')}</div>
     ${l.fonte === 'umuarama' ? `<div class="sec-t">Umuarama · bloco ${l.regra_bloco} · ${esc((pgs[0] || {}).conta || l.regra_conta)}<span class="tot">orçado x gasto da Umuarama</span></div>
     ${pgs.length ? pgs.map(p => `<div class="pg"><div class="d">${MESES[p.mes - 1]}/${String(ANO).slice(2)}</div><div class="t">orçado ${brl(p.orcado)}</div><div class="v num" style="color:${+p.gasto > +p.orcado ? 'var(--bad)' : 'inherit'}">${brl(p.gasto)}</div></div>`).join('')
