@@ -13,15 +13,30 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// Tema antes de desenhar a página (evita piscar claro): escolha salva, senão o do sistema
+(function(){ var t; try { t = JSON.parse(localStorage.getItem('orc_tema')); } catch (e) {}
+  if (t !== 'dark' && t !== 'light') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  document.documentElement.dataset.theme = t; })();
+</script>
 <style>
 :root{
   /* Paleta JFL (jfl.inc), a mesma do app de governança */
   --jfl-bronze:#AF8668; --bg:#F5F3F0; --card:#fff; --ink:#111114; --muted:#7A746D; --line:#E3DED8;
   --brand:#8E4E38; --brand-dk:#6F3B2A; --brand-bg:#F6ECE7;
   --ok:#2F6B2A; --ok-bg:#E4F0DE; --warn:#B8920F; --warn-bg:#FFF5CC; --bad:#B3261E; --bad-bg:#FBE4E1;
+  --head:#8E4E38; --card-2:#FAF9F7; --hover:#FBFAF8; --track:#EEEAE5; --field:#fff; --ok-line:#93C285; --toast:#111114;
   --r:4px;
   --serif:"Newsreader","Iowan Old Style",Georgia,serif;
   --sans:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+/* Fundo escuro: escolhido no botão do cabeçalho (fica salvo no aparelho); sem escolha, segue o sistema */
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --jfl-bronze:#C29A7B; --bg:#141312; --card:#1E1C1A; --ink:#ECE8E3; --muted:#A1998F; --line:#34302C;
+  --brand:#D28C6E; --brand-dk:#E3A688; --brand-bg:#2C211C;
+  --ok:#6DBA5F; --ok-bg:#1F2E1B; --warn:#D9B23A; --warn-bg:#332B12; --bad:#EC6A60; --bad-bg:#3A1E1B;
+  --head:#5E3324; --card-2:#252220; --hover:#292522; --track:#3A3532; --field:#191715; --ok-line:#4C7F43; --toast:#2E2A27;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 var(--sans)}
@@ -31,18 +46,20 @@ input,select{font:inherit}
 .logo{display:block;fill:currentColor}
 .num{font-variant-numeric:tabular-nums}
 
-header.top{position:sticky;top:0;z-index:5;background:var(--brand);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 20px 12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+header.top{position:sticky;top:0;z-index:5;background:var(--head);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 20px 12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 header.top .logo{width:30px;height:24px;flex:none}
 header.top .divider{width:1px;height:28px;background:rgba(255,255,255,.25)}
 header.top h1{font-size:16px;margin:0;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
 header.top .sub{font-size:12px;color:rgba(255,255,255,.72);font-weight:500;text-transform:uppercase;letter-spacing:.12em}
 header.top select{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:var(--r);padding:5px 8px;font-size:13px}
-header.top select option{color:var(--ink)}
+header.top select option{color:var(--ink);background:var(--card)}
 .btn-ghost{background:transparent;color:#fff;padding:6px 12px;font-size:13px;border:1px solid rgba(255,255,255,.4)}
+.btn-ghost.ico{padding:6px 9px;line-height:1}
+.btn-ghost.ico svg{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 main{max-width:1100px;margin:0 auto;padding:20px}
 
 /* Login */
-#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:var(--brand);color:#fff}
+#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:var(--head);color:#fff}
 #login .logo{width:74px;height:60px;margin-bottom:22px}
 #login h2{margin:0 0 2px;font:400 26px/1.2 var(--serif)}
 #login h2 i{color:var(--jfl-bronze)}
@@ -64,10 +81,10 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .tabs button.on{color:var(--brand);border-bottom-color:var(--brand)}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:16px}
 .toolbar .grow{flex:1}
-.btn{background:var(--brand);color:#fff;padding:9px 14px;font-size:14px;font-weight:600}
-.btn.sec{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+.btn{background:var(--head);color:#fff;padding:9px 14px;font-size:14px;font-weight:600}
+.btn.sec{background:var(--card);color:var(--brand);border:1px solid var(--brand)}
 .btn.link{background:none;color:var(--muted);text-decoration:underline;padding:6px}
-.btn.danger{background:#fff;color:var(--bad);border:1px solid var(--bad)}
+.btn.danger{background:var(--card);color:var(--bad);border:1px solid var(--bad)}
 .btn:disabled{opacity:.5;cursor:default}
 .hint{font-size:13px;color:var(--muted)}
 
@@ -91,20 +108,20 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .tbl{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .row{display:grid;grid-template-columns:minmax(0,2.4fr) 1fr 1fr 1fr 1.3fr;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line);cursor:pointer}
 .row:first-child{border-top:0}
-.row:hover{background:#FBFAF8}
-.row.head{cursor:default;background:#FAF9F7;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding-top:9px;padding-bottom:9px}
-.row.head:hover{background:#FAF9F7}
-.row.tot{cursor:default;background:#FAF9F7;border-top:2px solid var(--line)}
-.row.tot:hover{background:#FAF9F7}
+.row:hover{background:var(--hover)}
+.row.head{cursor:default;background:var(--card-2);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding-top:9px;padding-bottom:9px}
+.row.head:hover{background:var(--card-2)}
+.row.tot{cursor:default;background:var(--card-2);border-top:2px solid var(--line)}
+.row.tot:hover{background:var(--card-2)}
 .row.tot .nm,.row.tot .r{font-weight:700}
 .row .r{text-align:right}
 .row .nm{font-weight:600;font-size:15px}
 .row .meta{font-size:12px;color:var(--muted);margin-top:2px}
 .row .neg{color:var(--bad);font-weight:600}
-.tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;padding:1px 5px;border-radius:2px;border:1px solid var(--line);color:var(--muted);vertical-align:1px;margin-right:4px;background:#fff}
+.tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.08em;padding:1px 5px;border-radius:2px;border:1px solid var(--line);color:var(--muted);vertical-align:1px;margin-right:4px;background:var(--card)}
 .tag.spe{border-color:var(--brand);color:var(--brand)}
-.tag.auto{border-color:#93C285;color:var(--ok)}
-.bar{position:relative;height:8px;background:#EEEAE5;border-radius:2px;overflow:visible}
+.tag.auto{border-color:var(--ok-line);color:var(--ok)}
+.bar{position:relative;height:8px;background:var(--track);border-radius:2px;overflow:visible}
 .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--ok);border-radius:2px;max-width:100%}
 .bar i.warn{background:var(--warn)} .bar i.bad{background:var(--bad)}
 .bar b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.55}
@@ -122,8 +139,8 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .empty .ttl{font:400 24px var(--serif);color:var(--ink);margin-bottom:6px}
 
 /* Modal */
-.ov{position:fixed;inset:0;background:rgba(17,17,20,.45);z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
-.md{background:#fff;border-radius:var(--r);width:100%;max-width:720px;padding:22px 22px 18px;position:relative}
+.ov{position:fixed;inset:0;background:rgba(17,17,20,.55);z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
+.md{background:var(--card);border-radius:var(--r);width:100%;max-width:720px;padding:22px 22px 18px;position:relative}
 .md h3{margin:0 0 2px;font:400 24px/1.2 var(--serif)}
 .md .x{position:absolute;right:12px;top:10px;background:none;font-size:20px;color:var(--muted);padding:6px 10px}
 .md .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
@@ -146,13 +163,13 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .pg .t small{display:block;color:var(--muted);font-size:12px}
 .pg .v{font-weight:600;white-space:nowrap}
 .fld{display:flex;flex-direction:column;gap:4px;margin-top:12px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.fld input,.fld select{border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;font-size:15px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:400;background:#fff}
+.fld input,.fld select{border:1px solid var(--line);border-radius:var(--r);padding:9px 10px;font-size:15px;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:400;background:var(--field)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 12px}
 @media(max-width:560px){ .grid3{grid-template-columns:1fr 1fr} }
 .seg{display:flex;border:1px solid var(--brand);border-radius:var(--r);overflow:hidden;margin-top:4px}
-.seg button{flex:1;background:#fff;color:var(--brand);padding:8px;font-size:14px;border-radius:0;text-transform:none;letter-spacing:0}
-.seg button.on{background:var(--brand);color:#fff}
+.seg button{flex:1;background:var(--card);color:var(--brand);padding:8px;font-size:14px;border-radius:0;text-transform:none;letter-spacing:0}
+.seg button.on{background:var(--head);color:#fff}
 .fins{max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--r);margin-top:6px}
 .fins label{display:flex;gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--line);font-size:14px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)}
 .fins label:first-child{border-top:0}
@@ -166,7 +183,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .user b{flex:1}
 .user.off{opacity:.5}
 
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:var(--r);font-size:14px;z-index:40;max-width:90vw}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--toast);color:#fff;padding:11px 18px;border-radius:var(--r);font-size:14px;z-index:40;max-width:90vw}
 #toast.err{background:var(--bad)}
 </style>
 </head>
@@ -189,6 +206,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
     <select id="selPredio" aria-label="Prédio"></select>
     <select id="selAno" aria-label="Ano"></select>
     <select id="selMes" aria-label="Mês"></select>
+    <button class="btn-ghost ico" id="btnTema"></button>
     <button class="btn-ghost" id="btnSair">Sair</button>
   </header>
   <main>
@@ -303,6 +321,19 @@ function logout(){
   $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
 }
 $('#btnSair').onclick = logout;
+
+// Fundo claro / escuro: o botão mostra o tema para o qual vai trocar
+const ICO_LUA = '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+const ICO_SOL = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+function aplicarTema(t){
+  document.documentElement.dataset.theme = t;
+  const escuro = t === 'dark';
+  $('#btnTema').innerHTML = escuro ? ICO_SOL : ICO_LUA;
+  $('#btnTema').title = $('#btnTema').ariaLabel = escuro ? 'Fundo claro' : 'Fundo escuro';
+  document.querySelector('meta[name="theme-color"]').content = escuro ? '#5E3324' : '#8E4E38';
+}
+aplicarTema(document.documentElement.dataset.theme);
+$('#btnTema').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; store.set('tema', t); aplicarTema(t); };
 
 function start(){
   const u = S.user;
@@ -538,7 +569,7 @@ async function abrirEditor(l){
     q('#eBloco').innerHTML = blocos.map(b => `<option value="${b}" ${b === st.bloco ? 'selected' : ''}>Bloco ${b}</option>`).join('');
     const vis = contas.filter(c => c.bloco === st.bloco);
     let grupo = null;
-    q('#eContas').innerHTML = vis.map(c => { const g = c.grupo !== grupo ? `<label style="background:#FAF9F7;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;cursor:default">${esc(c.grupo || '')}</label>` : ''; grupo = c.grupo;
+    q('#eContas').innerHTML = vis.map(c => { const g = c.grupo !== grupo ? `<label style="background:var(--card-2);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;cursor:default">${esc(c.grupo || '')}</label>` : ''; grupo = c.grupo;
       const outras = (c.linhas || []).filter(id => id !== l.id);
       return g + `<label><input type="radio" name="eConta" value="${esc(c.chave)}" ${c.chave === st.conta ? 'checked' : ''}> ${esc(c.conta)} ${outras.length ? '<em>já usada em outra linha</em>' : ''}<small class="num">orçado ${brl0(c.orcado_mes)}/mês · gasto ${brl0(c.total)}</small></label>`; }).join('');
   };
