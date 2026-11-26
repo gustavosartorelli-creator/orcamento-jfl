@@ -49,6 +49,8 @@ input,select{font:inherit}
 header.top{position:sticky;top:0;z-index:5;background:var(--head);color:#fff;padding:calc(12px + env(safe-area-inset-top)) 20px 12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 header.top .logo{width:30px;height:24px;flex:none}
 header.top .divider{width:1px;height:28px;background:rgba(255,255,255,.25)}
+header.top .logo-predio{height:28px;width:auto;max-width:90px;object-fit:contain;flex:none}
+header.top .hidden{display:none}
 header.top h1{font-size:16px;margin:0;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.01em}
 header.top .sub{font-size:12px;color:rgba(255,255,255,.72);font-weight:500;text-transform:uppercase;letter-spacing:.12em}
 header.top select{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:var(--r);padding:5px 8px;font-size:13px}
@@ -102,7 +104,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .stat.ok{border-top-color:var(--ok)}
 .stat.wide{grid-column:span 3}
 @media(max-width:720px){ .stats{grid-template-columns:repeat(2,1fr)} .stat .v{font-size:21px} .stat.wide{grid-column:span 1} }
-@media(max-width:560px){ header.top h1{min-width:calc(100% - 90px);white-space:normal;line-height:1.25} }
+@media(max-width:560px){ header.top h1{min-width:calc(100% - 90px);white-space:normal;line-height:1.25} header.top #divPredio{display:none} }
 
 /* Linhas */
 .sec-t{display:flex;align-items:baseline;gap:10px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin:24px 2px 8px}
@@ -208,6 +210,8 @@ main{max-width:1100px;margin:0 auto;padding:20px}
   <header class="top">
     <svg class="logo" viewBox="0 0 1152 919.3" aria-label="JFL"><polygon points="899.5 688.1 899.5 12.4 783.1 12.4 783.1 722.8 1141.8 722.8 1141.8 688.1 899.5 688.1"/><polygon points="367.5 722.8 484.7 722.8 484.7 241 607.4 241 607.4 206.3 484.7 206.3 484.7 47.2 726.4 47.2 726.4 12.4 367.5 12.4 367.5 722.8"/><path d="M209.1,12.4H20.7v34.7h121.5v553.2c0,228.4-30.4,261.4-132,284l3.5,22.6c139-24.3,245.8-85.1,245.8-308.3V12.4h-50.4Z"/></svg>
     <span class="divider"></span>
+    <img class="logo-predio hidden" id="logoPredio" alt="">
+    <span class="divider hidden" id="divPredio"></span>
     <h1><span class="sub" id="hdSub">Orçamento</span><br><span id="hdNome"></span></h1>
     <select id="selPredio" aria-label="Prédio"></select>
     <select id="selAno" aria-label="Ano"></select>
@@ -245,6 +249,13 @@ const ABAS = { VHOUSE: 'vhouse', JML747: 'jml', JML: 'jml', AVNU: 'avnu', JFL125
 // Vertical da regra SPE: tipo e, opcionalmente, o destino da "Descrição Vertical" da planilha (Unidades / Condomínio)
 const VERTICAIS = [['OPEX', 'OPEX'], ['OPEX UNIDADES', 'OPEX · só Unidades'], ['OPEX CONDOMINIO', 'OPEX · só Condomínio'],
   ['CAPEX', 'CAPEX'], ['CAPEX UNIDADES', 'CAPEX · só Unidades'], ['CAPEX CONDOMINIO', 'CAPEX · só Condomínio']];
+// Logos dos prédios (brancos, fundo transparente), os mesmos do app de governança
+const PREDIO_LOGO = { jml: 'logos/jml.png', avnu: 'logos/avnu.png', jfl125: 'logos/jfl125.png', vo699: 'logos/vo699.svg', vhouse: 'logos/vhouse.png' };
+function mostrarLogoPredio(){
+  const src = PREDIO_LOGO[PREDIO], nome = ((S.user && S.user.predios) || []).find(p => p.id === PREDIO);
+  $('#logoPredio').classList.toggle('hidden', !src); $('#divPredio').classList.toggle('hidden', !src);
+  if (src) { $('#logoPredio').src = src; $('#logoPredio').alt = nome ? nome.nome : PREDIO; }
+}
 const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
 /* ================= Utils ================= */
@@ -358,7 +369,8 @@ function start(){
   $('#selPredio').value = PREDIO;
   $('#selPredio').classList.toggle('hidden', predios.length < 2);
   $('#hdSub').textContent = predios.length === 1 ? `Orçamento · ${predios[0].nome}` : 'Orçamento';
-  $('#selPredio').onchange = () => { PREDIO = $('#selPredio').value; store.set('predio', PREDIO); carregar(); };
+  mostrarLogoPredio();
+  $('#selPredio').onchange = () => { PREDIO = $('#selPredio').value; store.set('predio', PREDIO); mostrarLogoPredio(); carregar(); };
   const y = +hojeISO().slice(0, 4);
   $('#selAno').innerHTML = [y + 1, y, y - 1].filter(a => a >= 2026).map(a => `<option>${a}</option>`).join('');
   $('#selAno').value = ANO;
