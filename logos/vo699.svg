@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 950 720" role="img" aria-label="VO699 por jfl living">
+  <!-- VO699: V = triângulo azul + triângulo cinza; O = círculo laranja com a fatia escura alinhada ao V -->
+  <polygon points="0,0 312,0 312,540" fill="#95C6D1"/>
+  <polygon points="312,0 622,0 312,540" fill="#454545"/>
+  <circle cx="622" cy="270" r="270" fill="#CC7F4E"/>
+  <path d="M622,0 A270,270 0 0 0 389,406 Z" fill="#352016"/>
+  <text x="890" y="403" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="140" fill="#fff">699</text>
+  <text x="947" y="668" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="80" fill="#fff" fill-opacity=".85"><tspan font-weight="300">por </tspan><tspan font-weight="700">jfl living</tspan></text>
+</svg>
