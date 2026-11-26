@@ -33,6 +33,10 @@ Cada linha (`orc_linhas`) tem `fonte`:
   somar o rateio mensal de obras do condomínio (LUMINUS JARDINS, R$ 39.679,80/mês, Capex Condomínio).
   O rateio tem linha própria na Manutenção ("Melhorias e Obras (rateio condomínio)", `CAPEX CONDOMINIO`), orçado R$ 473.691:
   soma da parte da SPE nos itens classificados como Capex do "Investimento (M&O)" (aba "Orç CONSOLIDADO", Melhorias e Obras - 00195).
+- **Itens orçados** (`orc_itens`, RPC `orc_itens_linha`): o que compõe o orçado de uma linha, mostrado no detalhe abaixo do gráfico.
+  Carregados à mão (sem tela de edição) para as 4 linhas de Melhorias e Obras da Manutenção: 195 Unidades (aba Capex, R$ 160 mil),
+  rateio (parte da SPE nos itens Capex do Orç CONSOLIDADO, R$ 473.691) e condomínio Geral/Residencial (aba Investimento (M&O), valores
+  totais do condomínio; a soma não bate com o orçado da Umuarama e o app avisa isso no detalhe).
 - Na tela, um seletor **Todos / Condomínio / SPE** (só aparece se o departamento tem as duas origens; fica salvo no aparelho).
 - `umuarama` (também **AUTO**): soma do gasto da conta da Umuarama (`orc_condominio`) no ano, pelo bloco (`regra_bloco`) e pela
   conta (`regra_conta`, chave sem acento). É o caso das linhas de condomínio do JML desde 03/11/2026.

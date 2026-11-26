@@ -513,9 +513,22 @@ async function abrirDetalhe(id){
   ov.querySelector('#dtOk').onclick = () => ov.remove();
   if (isAdmin()) ov.querySelector('#dtEditar').onclick = () => { ov.remove(); abrirEditor(l); };
   if (l.fonte === 'manual') return;
-  let pgs;
-  try { pgs = await rpc('orc_detalhe', { p_pin: S.pin, p_linha: id }); }
-  catch (e) { ov.querySelector('#dtCorpo').innerHTML = `<p class="hint">${esc(e.message)}</p>`; return; }
+  let pgs, itens;
+  try {
+    [pgs, itens] = await Promise.all([rpc('orc_detalhe', { p_pin: S.pin, p_linha: id }),
+      rpc('orc_itens_linha', { p_pin: S.pin, p_linha: id }).catch(() => [])]);
+  } catch (e) { ov.querySelector('#dtCorpo').innerHTML = `<p class="hint">${esc(e.message)}</p>`; return; }
+  // Itens orçados (o que compõe o orçado da linha), quando cadastrados
+  const somaItens = itens.reduce((s, i) => s + +i.valor, 0);
+  const difere = itens.length && Math.abs(somaItens - +l.orcado_ano) > 1;
+  const itensHTML = !itens.length ? '' : `
+    <div class="sec-t">Itens orçados<span class="tot num">${itens.length} ite${itens.length === 1 ? 'm' : 'ns'} · ${brl0(somaItens)}</span></div>
+    ${difere ? `<p class="hint" style="margin:0 0 6px">${l.origem === 'condominio'
+      ? `Plano de investimento do condomínio (planilha de orçamento, aba Investimento M&amp;O), valores totais do condomínio. A soma é diferente do orçado da Umuarama para esta conta (${brl0(l.orcado_ano)}).`
+      : `A soma dos itens é diferente do orçado da linha (${brl0(l.orcado_ano)}).`}</p>` : ''}
+    ${itens.map(i => `<div class="pg"><div class="d">${esc(i.grupo || '')}</div>
+      <div class="t">${esc(i.descricao)}${i.fornecedor || i.obs ? `<small>${esc([i.fornecedor, i.obs].filter(Boolean).join(' · '))}</small>` : ''}</div>
+      <div class="v num">${brl(i.valor)}</div></div>`).join('')}`;
   const meses = l.meses || {};
   const chaves = Object.keys(meses).sort();
   const lista = [...new Set([...chaves.filter(k => k < `${ANO}-01`), ...MESES.map((_, i) => `${ANO}-${String(i + 1).padStart(2, '0')}`)])];
@@ -524,6 +537,7 @@ async function abrirDetalhe(id){
     <div class="sec-t" style="margin-top:6px">Gasto por mês<span class="tot">tracejado = orçado do mês</span></div>
     <div class="meses"><div class="ref" style="bottom:${+l.orcado_mes / max * 100}%"></div>${lista.map(k => { const v = +meses[k] || 0, sel = MES && k === `${ANO}-${String(MES).padStart(2, '0')}`; return `<div class="m" title="${k}: ${brl(v)}" style="${MES && !sel ? 'opacity:.35' : ''}"><i class="${v > +l.orcado_mes ? 'over' : ''}" style="height:${v / max * 100}%"></i></div>`; }).join('')}</div>
     <div class="meses-l">${lista.map(k => `<span>${MESES[+k.slice(5) - 1]}${k.slice(0, 4) != ANO ? '/' + k.slice(2, 4) : ''}</span>`).join('')}</div>
+    ${itensHTML}
     ${l.fonte === 'umuarama' ? `<div class="sec-t">Umuarama · bloco ${l.regra_bloco} · ${esc((pgs[0] || {}).conta || l.regra_conta)}<span class="tot">orçado x gasto da Umuarama</span></div>
     ${pgs.length ? pgs.map(p => `<div class="pg"><div class="d">${MESES[p.mes - 1]}/${String(ANO).slice(2)}</div><div class="t">orçado ${brl(p.orcado)}</div><div class="v num" style="color:${+p.gasto > +p.orcado ? 'var(--bad)' : 'inherit'}">${brl(p.gasto)}</div></div>`).join('')
       : '<p class="hint">Nenhum mês importado com esta conta.</p>'}` : `
