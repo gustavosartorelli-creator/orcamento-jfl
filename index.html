@@ -234,6 +234,9 @@ const nomeDep = d => DEPTOS[d] || DEPTOS_PRIVADOS[d] || d;
 const PAPEIS = { admin: 'Administração (edita)', gestor: 'Gestor (vê tudo)', lider: 'Líder de departamento' };
 // Aba da planilha de pagamentos → prédio
 const ABAS = { VHOUSE: 'vhouse', JML747: 'jml', JML: 'jml', AVNU: 'avnu', JFL125: 'jfl125', VO699: 'vo699' };
+// Vertical da regra SPE: tipo e, opcionalmente, o destino da "Descrição Vertical" da planilha (Unidades / Condomínio)
+const VERTICAIS = [['OPEX', 'OPEX'], ['OPEX UNIDADES', 'OPEX · só Unidades'], ['OPEX CONDOMINIO', 'OPEX · só Condomínio'],
+  ['CAPEX', 'CAPEX'], ['CAPEX UNIDADES', 'CAPEX · só Unidades'], ['CAPEX CONDOMINIO', 'CAPEX · só Condomínio']];
 const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 
 /* ================= Utils ================= */
@@ -392,7 +395,7 @@ function render(){
 
   const f = fracPeriodo();
   // SPE separada em OPEX e CAPEX (pela vertical da linha); linhas SPE sem vertical ficam em "SPE".
-  const vert = l => l.origem === 'spe' ? (l.regra_vertical || '') : null;
+  const vert = l => l.origem === 'spe' ? (l.regra_vertical || '').split(' ')[0] : null; // "CAPEX UNIDADES" → CAPEX
   let html = resumoHTML('Condomínio', ls.filter(l => l.origem === 'condominio'), f)
     + [['OPEX', 'SPE · OPEX'], ['CAPEX', 'SPE · CAPEX'], ['', 'SPE']]
       .map(([v, nome]) => resumoHTML(nome, ls.filter(l => vert(l) === v), f)).join('');
@@ -550,7 +553,7 @@ async function abrirEditor(l){
       <div class="hint" style="margin-top:6px">No JML, o relatório Orçado e Gasto vem em 3 blocos: 1 = Geral, 2 = Residencial, 3 = Comercial.</div>
     </div>
     <div id="eAuto">
-      <label class="fld">Vertical<select id="eVert"><option value="">Qualquer</option><option ${l.regra_vertical === 'OPEX' ? 'selected' : ''}>OPEX</option><option ${l.regra_vertical === 'CAPEX' ? 'selected' : ''}>CAPEX</option></select></label>
+      <label class="fld">Vertical<select id="eVert"><option value="">Qualquer</option>${VERTICAIS.map(([v, nome]) => `<option value="${v}" ${l.regra_vertical === v ? 'selected' : ''}>${nome}</option>`).join('')}</select></label>
       <div class="fld">Finalidades da planilha que entram nesta linha<div class="fins" id="eFins"><label>Carregando…</label></div></div>
       <div class="hint" id="eSoma" style="margin-top:6px"></div>
     </div>
@@ -577,7 +580,8 @@ async function abrirEditor(l){
   const desenharFins = () => {
     if (st.fonte !== 'pagamentos') return;
     const v = q('#eVert').value;
-    const vis = fins.filter(f => !v || f.vert_tipo === v);
+    const [vTipo, vAlvo] = v.split(' ');
+    const vis = fins.filter(f => !v || (f.vert_tipo === vTipo && (!vAlvo || f.vert_alvo === vAlvo)));
     // agrupa por chave (a mesma finalidade pode aparecer em OPEX e CAPEX)
     const porChave = {}; vis.forEach(f => { const c = porChave[f.chave] || (porChave[f.chave] = { chave: f.chave, nome: f.finalidade, qtd: 0, total: 0, outras: [] }); c.qtd += f.qtd; c.total += +f.total; (f.linhas || []).filter(id => id !== l.id).forEach(id => c.outras.push(id)); });
     const itens = Object.values(porChave).sort((a, b) => (st.fins.has(b.chave) - st.fins.has(a.chave)) || a.nome.localeCompare(b.nome));

@@ -27,7 +27,10 @@ Perfis por PIN de 4 dígitos (`orc_usuarios`, independente do app de governança
 Cada linha (`orc_linhas`) tem `fonte`:
 - `pagamentos` (marcada **AUTO** no app): soma dos pagamentos importados (`orc_pagamentos`) do mesmo prédio e ano cuja
   **Finalidade** está em `regra_finalidades` (comparação sem acento e sem pontuação, `orc__chave`) e cuja **Descrição Vertical**
-  contém OPEX/CAPEX conforme `regra_vertical`.
+  contém OPEX/CAPEX conforme `regra_vertical`. Desde 26/11/2026 a regra pode ter destino: `CAPEX UNIDADES`, `CAPEX CONDOMINIO`
+  (idem OPEX) pega só a Descrição Vertical com "Unidades" ou "Condomínio" (`orc__vert_ok`). Ex.: a linha 195 Melhorias e Obras da
+  Manutenção (orçado R$ 160 mil, aba "Capex JFL 2026 - JML747" do ORÇAMENTO 2026 PARA CONSULTA) usa `CAPEX UNIDADES`, para não
+  somar o rateio mensal de obras do condomínio (LUMINUS JARDINS, R$ 39.679,80/mês, Capex Condomínio).
 - `umuarama` (também **AUTO**): soma do gasto da conta da Umuarama (`orc_condominio`) no ano, pelo bloco (`regra_bloco`) e pela
   conta (`regra_conta`, chave sem acento). É o caso das linhas de condomínio do JML desde 03/11/2026.
 - `manual`: valor digitado pela administração em `realizado_manual`. Não tem valor por mês, então some no filtro de mês.
