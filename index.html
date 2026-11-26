@@ -100,7 +100,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .stat.ok{border-top-color:var(--ok)}
 .stat.wide{grid-column:span 3}
 @media(max-width:720px){ .stats{grid-template-columns:repeat(2,1fr)} .stat .v{font-size:21px} .stat.wide{grid-column:span 1} }
-@media(max-width:560px){ header.top h1{min-width:calc(100% - 90px)} }
+@media(max-width:560px){ header.top h1{min-width:calc(100% - 90px);white-space:normal;line-height:1.25} }
 
 /* Linhas */
 .sec-t{display:flex;align-items:baseline;gap:10px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.14em;margin:24px 2px 8px}
@@ -345,7 +345,9 @@ $('#btnTema').onclick = () => { const t = document.documentElement.dataset.theme
 function start(){
   const u = S.user;
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  $('#hdNome').textContent = u.nome + (u.papel === 'lider' ? ' · ' + (DEPTOS[u.departamento] || u.departamento) : '');
+  // Título do usuário (ex.: "Graciele Ranzan - Gerente de manutenção"); sem título, "nome · departamento"
+  const topo = u => u.titulo || (u.nome + (u.papel === 'lider' ? ' · ' + (DEPTOS[u.departamento] || u.departamento) : ''));
+  $('#hdNome').textContent = topo(u);
   const predios = u.predios || [];
   PREDIO = predios.some(p => p.id === store.get('predio')) ? store.get('predio') : (u.predio || (predios[0] && predios[0].id));
   $('#selPredio').innerHTML = predios.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('');
@@ -361,7 +363,7 @@ function start(){
   $('#selMes').value = MES;
   $('#selMes').onchange = () => { MES = +$('#selMes').value; render(); };
   // sessões salvas antes de ve_privadas existir: atualiza o perfil em segundo plano
-  rpc('orc_login', { p_pin: S.pin }).then(u => { S.user = u; store.set('sessao', S); }).catch(() => {});
+  rpc('orc_login', { p_pin: S.pin }).then(u => { S.user = u; store.set('sessao', S); $('#hdNome').textContent = topo(u); }).catch(() => {});
   carregar();
 }
 
