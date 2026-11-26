@@ -170,6 +170,9 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .seg{display:flex;border:1px solid var(--brand);border-radius:var(--r);overflow:hidden;margin-top:4px}
 .seg button{flex:1;background:var(--card);color:var(--brand);padding:8px;font-size:14px;border-radius:0;text-transform:none;letter-spacing:0}
 .seg button.on{background:var(--head);color:#fff}
+.seg-vista{display:inline-flex;margin:0 0 18px}
+.seg-vista.hidden{display:none}
+.seg-vista button{flex:none;padding:7px 16px}
 .fins{max-height:260px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--r);margin-top:6px}
 .fins label{display:flex;gap:10px;align-items:center;padding:7px 10px;border-top:1px solid var(--line);font-size:14px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink)}
 .fins label:first-child{border-top:0}
@@ -212,6 +215,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
   <main>
     <div class="tabs" id="tabs"></div>
     <div class="toolbar" id="adminBar"></div>
+    <div class="seg seg-vista hidden" id="vista" role="group" aria-label="Mostrar"></div>
     <div id="conteudo"></div>
   </main>
 </section>
@@ -389,7 +393,16 @@ function render(){
     + (isAdmin() ? `<button class="btn sec" id="bImport">Importar SPE</button><button class="btn sec" id="bCond">Importar condomínio</button><button class="btn sec" id="bNova">Nova linha</button><button class="btn sec" id="bEquipe">Equipe</button>` : '');
   if (isAdmin()) { $('#bImport').onclick = abrirImportar; $('#bCond').onclick = abrirImportarCondominio; $('#bNova').onclick = () => abrirEditor({ departamento: DEP, origem: 'condominio', fonte: 'manual' }); $('#bEquipe').onclick = abrirEquipe; }
 
-  const ls = D.linhas.filter(l => l.departamento === DEP);
+  const todas = D.linhas.filter(l => l.departamento === DEP);
+  // Vista: Todos / só Condomínio / só SPE (só aparece quando o departamento tem as duas origens)
+  const temAmbas = todas.some(l => l.origem === 'condominio') && todas.some(l => l.origem === 'spe');
+  let vista = store.get('vista') || 'todos';
+  if (!temAmbas) vista = 'todos';
+  $('#vista').classList.toggle('hidden', !temAmbas);
+  $('#vista').innerHTML = [['todos', 'Todos'], ['condominio', 'Condomínio'], ['spe', 'SPE']]
+    .map(([v, nome]) => `<button data-v="${v}" class="${v === vista ? 'on' : ''}" aria-pressed="${v === vista}">${nome}</button>`).join('');
+  $('#vista').onclick = e => { const v = e.target.dataset.v; if (!v) return; store.set('vista', v); render(); };
+  const ls = vista === 'todos' ? todas : todas.filter(l => l.origem === vista);
   if (ls.length && ls.every(l => l.privada)) $('#adminBar').insertAdjacentHTML('beforeend', '<span class="hint" style="flex-basis:100%"><b>Aba privada:</b> só você vê. Uma linha por conta da Umuarama; contas novas entram sozinhas a cada importação.</span>');
   if (!ls.length) { $('#conteudo').innerHTML = `<div class="empty"><div class="ttl">Sem linhas de orçamento</div>${isAdmin() ? 'Use “Nova linha” para cadastrar.' : 'A administração ainda não cadastrou o orçamento deste departamento.'}</div>`; return; }
 
