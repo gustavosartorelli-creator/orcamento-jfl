@@ -87,6 +87,8 @@ main{max-width:1100px;margin:0 auto;padding:20px}
 .btn.danger{background:var(--card);color:var(--bad);border:1px solid var(--bad)}
 .btn:disabled{opacity:.5;cursor:default}
 .hint{font-size:13px;color:var(--muted)}
+.assinatura{text-align:center;font-size:11px;letter-spacing:.08em;color:var(--muted);padding:8px 16px 28px}
+#login .assinatura{color:rgba(255,255,255,.55);margin-top:28px;padding:0}
 
 /* Resumo */
 .grp{display:flex;align-items:baseline;gap:10px;font-size:12px;font-weight:600;color:var(--brand);text-transform:uppercase;letter-spacing:.14em;margin:0 2px 8px}
@@ -199,6 +201,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
   <div class="pins" id="pins"><span></span><span></span><span></span><span></span></div>
   <div id="loginMsg"></div>
   <div class="pad" id="pad"></div>
+  <div class="assinatura">Powered by Gustavo Sartorelli®</div>
 </section>
 
 <section id="app" class="hidden">
@@ -218,6 +221,7 @@ main{max-width:1100px;margin:0 auto;padding:20px}
     <div class="seg seg-vista hidden" id="vista" role="group" aria-label="Mostrar"></div>
     <div id="conteudo"></div>
   </main>
+  <footer class="assinatura">Powered by Gustavo Sartorelli®</footer>
 </section>
 
 <div id="toast" class="hidden"></div>
